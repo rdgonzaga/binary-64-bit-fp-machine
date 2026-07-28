@@ -196,7 +196,7 @@ export const ArithmeticView: React.FC = () => {
 
                 {/* Bottom Row: Mantissa */}
                 <div className="flex flex-col items-center w-full">
-                  <div className="bg-white border border-zinc-900 rounded-2xl px-4 py-4 sm:px-6 font-mono text-xs sm:text-sm font-normal text-[#695C53] text-center w-full shadow-2xs">
+                  <div className="bg-white border border-zinc-900 rounded-2xl px-4 py-4 sm:px-6 font-mono text-base sm:text-lg font-normal text-[#695C53] text-center w-full shadow-2xs">
                     <div className="flex flex-wrap justify-center gap-x-2.5 sm:gap-x-3.5 gap-y-1.5 font-mono">
                       {arithmeticData.resultIEEE.mantissaBits.match(/.{1,4}/g)?.map((nibble, idx) => (
                         <span key={idx} className="whitespace-nowrap tracking-wider">
