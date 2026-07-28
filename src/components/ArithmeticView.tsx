@@ -25,8 +25,14 @@ export const ArithmeticView: React.FC = () => {
     const targetB = customB !== undefined ? customB : opB;
     const targetOp = customOp !== undefined ? customOp : operation;
 
-    const valA = targetA.trim() || '5.859874482048838';
-    const valB = targetB.trim() || '1.0';
+    const valA = targetA.trim();
+    const valB = targetB.trim();
+
+    if (!valA || !valB) {
+      setErrorMessage('Please enter both Operand A and Operand B.');
+      setHasComputed(false);
+      return;
+    }
 
     if (!isValidOperand(valA) || !isValidOperand(valB)) {
       setErrorMessage('Invalid operand format. Enter valid decimal or hex values.');

@@ -53,9 +53,10 @@ export const RoundingView: React.FC = () => {
           id="btn-round-action"
           onClick={() => {
             if (!inputVal.trim()) {
-              setInputVal(format === 'binary' ? '11.0010010000101' : '3.141592653589');
-              setErrorMessage(null);
+              setErrorMessage('Please enter a value to round.');
+              return;
             }
+            handleInputChange(inputVal);
           }}
           className="bg-[#F5B83D] border border-zinc-900 hover:bg-[#E5AA30] text-[#695C53] font-mono text-sm font-semibold px-6 py-2.5 rounded-xl transition-all cursor-pointer shadow-2xs hover:scale-105 active:scale-95"
         >

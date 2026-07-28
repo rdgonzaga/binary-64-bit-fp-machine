@@ -41,7 +41,11 @@ export const ConversionView: React.FC = () => {
         <button
           id="btn-convert"
           onClick={() => {
-            if (!inputText.trim()) handleInput('5.859874482048838');
+            if (!inputText.trim()) {
+              setErrorMessage('Please enter an input value.');
+              return;
+            }
+            handleInput(inputText);
           }}
           className="bg-[#8EBD6D] border border-zinc-900 hover:bg-[#7EB25B] text-[#695C53] font-mono text-sm font-semibold px-8 py-3 rounded-xl sm:rounded-2xl transition-all cursor-pointer text-center shadow-2xs hover:scale-105 active:scale-95"
         >
