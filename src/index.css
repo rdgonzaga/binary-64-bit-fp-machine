@@ -1,0 +1,26 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    font-family: 'DM Mono', monospace;
+    background-color: #E6DEC9;
+    color: #695C53;
+    min-height: 100vh;
+  }
+}
+
+/* Custom scrollbar for binary/hex views */
+::-webkit-scrollbar {
+  height: 6px;
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #C2B8A3;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #A39780;
+}
