@@ -1,0 +1,6 @@
+{
+  "name": "Binary 64-bit Floating-Point Machine",
+  "description": "IEEE 754 double-precision floating-point conversion, rounding methods demonstration, and step-by-step GRS arithmetic visualizer.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
