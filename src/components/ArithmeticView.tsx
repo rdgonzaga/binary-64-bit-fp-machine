@@ -180,7 +180,7 @@ export const ArithmeticView: React.FC = () => {
                     <div className="bg-white border border-zinc-900 rounded-2xl px-6 py-4 font-mono text-base sm:text-lg font-normal text-[#695C53] text-center min-w-[80px] shadow-2xs">
                       {arithmeticData.resultIEEE.signBit}
                     </div>
-                    <span className="text-xs font-mono text-[#695C53]/50 mt-1.5 font-medium">sign</span>
+                    <span className="text-xs font-mono font-bold tracking-wider text-zinc-900 mt-2">sign</span>
                   </div>
 
                   {/* Exponent Box */}
@@ -190,7 +190,7 @@ export const ArithmeticView: React.FC = () => {
                         {formatBitGroup(arithmeticData.resultIEEE.exponentBits)}
                       </div>
                     </div>
-                    <span className="text-xs font-mono text-[#695C53]/50 mt-1.5 font-medium">exponent</span>
+                    <span className="text-xs font-mono font-bold tracking-wider text-zinc-900 mt-2">exponent</span>
                   </div>
                 </div>
 
@@ -205,7 +205,7 @@ export const ArithmeticView: React.FC = () => {
                       ))}
                     </div>
                   </div>
-                  <span className="text-xs font-mono text-[#695C53]/50 mt-1.5 font-medium">mantissa</span>
+                  <span className="text-xs font-mono font-bold tracking-wider text-zinc-900 mt-2">mantissa</span>
                 </div>
               </div>
             </div>

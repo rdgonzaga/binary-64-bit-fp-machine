@@ -7,6 +7,11 @@ interface HeaderNavProps {
 }
 
 export const HeaderNav: React.FC<HeaderNavProps> = ({ activeTab, setActiveTab }) => {
+  // Hide the navigation header on the welcome tab
+  if (activeTab === 'welcome') {
+    return null;
+  }
+
   return (
     <header className="pt-8 pb-4 px-4 max-w-6xl mx-auto text-center">
       {/* Top 3 Navigation Pills */}
@@ -49,16 +54,14 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({ activeTab, setActiveTab })
       </div>
 
       {/* Dynamic Subtitle Description based on active tab */}
-      {activeTab !== 'welcome' && (
-        <p className="max-w-3xl mx-auto text-xs sm:text-sm font-mono text-[#695C53] leading-relaxed px-4 transition-all">
-          {activeTab === 'conversion' &&
-            'Convert decimal numbers into 64-bit IEEE 754 double-precision format with bit-level field breakdowns. Generates spaced binary and hexadecimal outputs and supports special cases.'}
-          {activeTab === 'rounding' &&
-            'Demonstrate precision truncation on decimal or binary inputs using custom target limits. Compare Chopping, Round-Up, Round-Down, and Round-to-Nearest (Ties-to-Even) side-by-side.'}
-          {activeTab === 'arithmetic' &&
-            'Input two operands in decimal or hex to run step-by-step addition or multiplication. Visualizes bit alignment, GRS logic, and normalization with final binary, hex, and decimal results.'}
-        </p>
-      )}
+      <p className="max-w-3xl mx-auto text-xs sm:text-sm font-mono text-[#695C53] leading-relaxed px-4 transition-all">
+        {activeTab === 'conversion' &&
+          'Convert decimal numbers into 64-bit IEEE 754 double-precision format with bit-level field breakdowns. Generates spaced binary and hexadecimal outputs and supports special cases.'}
+        {activeTab === 'rounding' &&
+          'Demonstrate precision truncation on decimal or binary inputs using custom target limits. Compare Chopping, Round-Up, Round-Down, and Round-to-Nearest (Ties-to-Even) side-by-side.'}
+        {activeTab === 'arithmetic' &&
+          'Input two operands in decimal or hex to run step-by-step addition or multiplication. Visualizes bit alignment, GRS logic, and normalization with final binary, hex, and decimal results.'}
+      </p>
     </header>
   );
 };

@@ -10,14 +10,14 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<AppTab>('welcome');
 
   return (
-    <div className="min-h-screen bg-[#E6DEC9] text-[#695C53] font-mono pb-16 selection:bg-[#8EBD6D] selection:text-[#695C53]">
+    <div className="min-h-screen bg-[#E6DEC9] text-[#5A4D44] font-body pb-16 selection:bg-[#8EBD6D] selection:text-[#5A4D44]">
       {/* Header Navigation Bar with Top Pills */}
       <HeaderNav activeTab={activeTab} setActiveTab={setActiveTab} />
 
       {/* View Switcher */}
       <main className="container mx-auto">
         {activeTab === 'welcome' && (
-          <WelcomeView onStart={() => setActiveTab('conversion')} />
+          <WelcomeView onNavigate={(tab) => setActiveTab(tab)} />
         )}
         {activeTab === 'conversion' && <ConversionView />}
         {activeTab === 'rounding' && <RoundingView />}
@@ -26,4 +26,3 @@ export default function App() {
     </div>
   );
 }
-
