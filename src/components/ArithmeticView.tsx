@@ -46,15 +46,60 @@ export const ArithmeticView: React.FC = () => {
     setHasComputed(true);
   };
 
-  // Compute GRS arithmetic result when computed
   const arithmeticData = useMemo(() => {
     if (!hasComputed) return null;
     return performGRSArithmetic(opA || '5.859874482048838', opB || '1.0', operation);
   }, [hasComputed, opA, opB, operation]);
 
-  const formatBitGroup = (bitsStr: string) => {
-    return bitsStr.split('').join(' ');
-  };
+  // Main table helper (used in the Final Results section)
+  const renderIEEETable = (label: string, sign: string, exponent: string, mantissa: string) => (
+    <div className="w-full">
+      <h3 className="text-sm font-semibold text-zinc-700 mb-2 ml-1">{label}</h3>
+      <div className="bg-white border border-zinc-200 rounded-2xl shadow-sm overflow-hidden flex flex-col w-full">
+        <div className="flex bg-zinc-50 border-b border-zinc-200 text-[10px] sm:text-xs font-semibold text-zinc-500 uppercase tracking-wider divide-x divide-zinc-200">
+          <div className="w-14 sm:w-20 py-2.5 text-center shrink-0">Sign</div>
+          <div className="w-24 sm:w-36 py-2.5 text-center shrink-0">Bias</div>
+          <div className="flex-1 py-2.5 px-4 text-left sm:text-center">Mantissa</div>
+        </div>
+        <div className="flex font-mono text-zinc-800 divide-x divide-zinc-200 bg-white">
+          <div className="w-14 sm:w-20 py-4 flex items-center justify-center shrink-0 bg-zinc-50/30 text-xs sm:text-sm">
+            {sign}
+          </div>
+          <div className="w-24 sm:w-36 py-4 flex items-center justify-center shrink-0 tracking-widest bg-zinc-50/30 text-[10px] sm:text-xs">
+            {exponent}
+          </div>
+          <div className="flex-1 py-4 px-4 flex items-center sm:justify-center tracking-widest break-all text-xs sm:text-sm">
+            {mantissa.match(/.{1,4}/g)?.join(' ') || mantissa}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Mini table helper (used specifically for Step 1 breakdown)
+  const renderMiniIEEETable = (label: string, sign: string, exponent: string, mantissa: string) => (
+    <div className="w-full mb-4 last:mb-0">
+      <h5 className="text-xs font-semibold text-zinc-600 mb-1.5 ml-1">{label}</h5>
+      <div className="bg-white border border-zinc-200 rounded-xl shadow-sm overflow-hidden flex flex-col w-full">
+        <div className="flex bg-zinc-50 border-b border-zinc-200 text-[9px] font-semibold text-zinc-500 uppercase tracking-wider divide-x divide-zinc-200">
+          <div className="w-10 sm:w-14 py-1.5 text-center shrink-0">Sign</div>
+          <div className="w-16 sm:w-24 py-1.5 text-center shrink-0">Bias</div>
+          <div className="flex-1 py-1.5 px-3 text-left sm:text-center">Mantissa</div>
+        </div>
+        <div className="flex font-mono text-zinc-800 divide-x divide-zinc-200 bg-white">
+          <div className="w-10 sm:w-14 py-2 flex items-center justify-center shrink-0 bg-zinc-50/30 text-[12px]">
+            {sign}
+          </div>
+          <div className="w-16 sm:w-24 py-2 flex items-center justify-center shrink-0 bg-zinc-50/30 text-[9px] sm:text-[11px] tracking-widest">
+            {exponent}
+          </div>
+          <div className="flex-1 py-2 px-3 flex items-center sm:justify-center tracking-widest break-all text-[10px] sm:text-xs">
+            {mantissa.match(/.{1,4}/g)?.join(' ') || mantissa}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-6 space-y-8">
@@ -161,66 +206,36 @@ export const ArithmeticView: React.FC = () => {
 
       {hasComputed && arithmeticData ? (
         <>
-          {/* Result Card 1: Binary */}
-          <div>
-            <div className="inline-block bg-white border border-zinc-900 border-b-0 rounded-t-2xl px-6 py-2.5 font-mono text-sm font-semibold text-[#695C53] -mb-[1px] relative z-10 shadow-xs">
-              Final Binary Result
+          {/* Result Card 1: IEEE Tables for Operands & Result */}
+          <div className="bg-white border border-zinc-900 rounded-3xl p-6 sm:p-8 shadow-xs space-y-8">
+            <div className="flex items-center justify-between border-b border-zinc-200 pb-4">
+              <h2 className="text-xl font-semibold text-[#695C53]">Binary Breakdown</h2>
             </div>
-
-            <div className="bg-white border border-zinc-900 rounded-b-3xl rounded-tr-3xl p-6 sm:p-12 shadow-xs">
-              <div className="flex flex-col gap-6 max-w-4xl mx-auto">
-                {/* Top Row: Sign & Exponent */}
-                <div className="flex flex-col sm:flex-row items-stretch gap-4 sm:gap-6">
-                  {/* Sign Box */}
-                  <div className="flex flex-col items-center">
-                    <div className="bg-white border border-zinc-900 rounded-2xl px-6 py-4 font-mono text-base sm:text-lg font-normal text-[#695C53] text-center min-w-[80px] shadow-2xs">
-                      {arithmeticData.resultIEEE.signBit}
-                    </div>
-                    <span className="text-xs font-mono text-[#695C53]/50 mt-1.5 font-medium">sign</span>
-                  </div>
-
-                  {/* Exponent Box */}
-                  <div className="flex flex-col items-center flex-1 min-w-0">
-                    <div className="bg-white border border-zinc-900 rounded-2xl px-4 py-4 sm:px-6 font-mono text-base sm:text-lg font-normal text-[#695C53] text-center w-full shadow-2xs">
-                      <div className="flex flex-wrap justify-center gap-x-2 sm:gap-x-3 gap-y-1 font-mono tracking-widest">
-                        {formatBitGroup(arithmeticData.resultIEEE.exponentBits)}
-                      </div>
-                    </div>
-                    <span className="text-xs font-mono text-[#695C53]/50 mt-1.5 font-medium">exponent</span>
-                  </div>
-                </div>
-
-                {/* Bottom Row: Mantissa */}
-                <div className="flex flex-col items-center w-full">
-                  <div className="bg-white border border-zinc-900 rounded-2xl px-4 py-4 sm:px-6 font-mono text-base sm:text-lg font-normal text-[#695C53] text-center w-full shadow-2xs">
-                    <div className="flex flex-wrap justify-center gap-x-2.5 sm:gap-x-3.5 gap-y-1.5 font-mono">
-                      {arithmeticData.resultIEEE.mantissaBits.match(/.{1,4}/g)?.map((nibble, idx) => (
-                        <span key={idx} className="whitespace-nowrap tracking-wider">
-                          {nibble.split('').join(' ')}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                  <span className="text-xs font-mono text-[#695C53]/50 mt-1.5 font-medium">mantissa</span>
-                </div>
-              </div>
+            
+            <div className="space-y-6">
+              {arithmeticData.operandA && 
+                renderIEEETable('Operand A', arithmeticData.operandA.signBit, arithmeticData.operandA.exponentBits, arithmeticData.operandA.mantissaBits)
+              }
+              {arithmeticData.operandB && 
+                renderIEEETable('Operand B', arithmeticData.operandB.signBit, arithmeticData.operandB.exponentBits, arithmeticData.operandB.mantissaBits)
+              }
+              
+              {renderIEEETable('Final Result', arithmeticData.resultIEEE.signBit, arithmeticData.resultIEEE.exponentBits, arithmeticData.resultIEEE.mantissaBits)}
             </div>
           </div>
 
           {/* Result Card 2 & 3: Hexadecimal and Decimal Side-by-Side */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Hexadecimal */}
             <div className="bg-white border border-zinc-900 rounded-3xl p-6 shadow-xs">
-              <h3 className="text-xs font-mono font-medium text-[#695C53]/50 mb-2">Hexadecimal</h3>
+              <h3 className="text-xs font-mono font-medium text-[#695C53]/50 mb-2">Final Hexadecimal</h3>
               <div className="border-t border-zinc-200 my-2"></div>
               <div className="text-center py-4 overflow-x-auto font-mono text-xl sm:text-2xl font-semibold text-[#695C53] tracking-wider">
                 {arithmeticData.resultHexString}
               </div>
             </div>
 
-            {/* Decimal */}
             <div className="bg-white border border-zinc-900 rounded-3xl p-6 shadow-xs">
-              <h3 className="text-xs font-mono font-medium text-[#695C53]/50 mb-2">Decimal</h3>
+              <h3 className="text-xs font-mono font-medium text-[#695C53]/50 mb-2">Final Decimal</h3>
               <div className="border-t border-zinc-200 my-2"></div>
               <div className="text-center py-4 overflow-x-auto font-mono text-xl sm:text-2xl font-semibold text-[#695C53] tracking-wider">
                 {arithmeticData.resultDecimalString}
@@ -270,20 +285,29 @@ export const ArithmeticView: React.FC = () => {
                         )}
                       </div>
 
-                      {/* Description (Sans-serif for readability) */}
+                      {/* Description */}
                       <p className="text-base text-zinc-600 leading-relaxed">
                         {step.description}
                       </p>
 
-                      {/* Detail block (Math-like notation style) */}
+                      {/* Detail block */}
                       {step.detail && (
                         <div className="text-sm font-mono text-zinc-600 whitespace-pre-wrap leading-loose">
                           {step.detail}
                         </div>
                       )}
 
-                      {/* Clean Math Block Visualization (Replaces dark terminal) */}
-                      {step.binaryVisualization && (
+                      {/* CONDITIONAL RENDERING FOR STEP 1 VISUALIZATION */}
+                      {step.stepNumber === 1 ? (
+                        <div className="bg-zinc-50/80 border-l-4 border-blue-400 p-4 sm:p-5 rounded-r-xl shadow-inner mt-4">
+                          {arithmeticData.operandA && 
+                            renderMiniIEEETable('Operand A', arithmeticData.operandA.signBit, arithmeticData.operandA.exponentBits, arithmeticData.operandA.mantissaBits)
+                          }
+                          {arithmeticData.operandB && 
+                            renderMiniIEEETable('Operand B', arithmeticData.operandB.signBit, arithmeticData.operandB.exponentBits, arithmeticData.operandB.mantissaBits)
+                          }
+                        </div>
+                      ) : step.binaryVisualization && (
                         <div className="bg-zinc-50/80 border-l-4 border-blue-400 text-zinc-800 font-mono text-sm sm:text-base p-4 sm:p-5 rounded-r-xl overflow-x-auto tracking-widest whitespace-pre shadow-inner">
                           {step.binaryVisualization}
                         </div>
