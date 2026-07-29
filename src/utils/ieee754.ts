@@ -3,15 +3,42 @@ import { IEEE754Double, RoundingResult, ArithmeticResult, ArithmeticStep } from 
 /**
  * Converts a number or input string (decimal or hex) to IEEE 754 double precision object.
  */
+function parseHexFloat(hexStr: string): number {
+  let clean = hexStr.trim().replace(/^0x/i, '');
+  if (!clean) return NaN;
+  let sign = 1;
+  if (clean.startsWith('-')) {
+    sign = -1;
+    clean = clean.substring(1);
+  } else if (clean.startsWith('+')) {
+    clean = clean.substring(1);
+  }
+  const parts = clean.split('.');
+  const intPart = parseInt(parts[0] || '0', 16);
+  if (isNaN(intPart)) return NaN;
+  let fracPart = 0;
+  if (parts[1]) {
+    for (let i = 0; i < parts[1].length; i++) {
+      const digitVal = parseInt(parts[1][i], 16);
+      if (isNaN(digitVal)) break;
+      fracPart += digitVal / Math.pow(16, i + 1);
+    }
+  }
+  return sign * (intPart + fracPart);
+}
+
+/**
+ * Converts a number or input string (decimal or hex) to IEEE 754 double precision object.
+ */
 export function decimalToIEEE754Double(input: number | string, mode?: 'decimal' | 'hex'): IEEE754Double {
   let numVal: number;
   let isHexInput = false;
 
   const cleanInput = typeof input === 'string' ? input.trim() : String(input);
 
-  // Check if input is hexadecimal e.g., 0x40177082EFAC4240 or 16-hex characters
-  if (mode === 'hex' || (mode === undefined && typeof input === 'string' && (cleanInput.startsWith('0x') || cleanInput.startsWith('0X') || /^[0-9a-fA-F]{16}$/.test(cleanInput)))) {
-    const hexClean = cleanInput.replace(/^0x/i, '');
+  // Check if input is hexadecimal (starts with 0x/0X or is 16 hex chars or mode is hex)
+  if (mode === 'hex' || (typeof input === 'string' && (cleanInput.startsWith('0x') || cleanInput.startsWith('0X') || /^[0-9a-fA-F]{16}$/.test(cleanInput.replace(/^0x/i, ''))))) {
+    const hexClean = cleanInput.replace(/^0x/i, '').replace(/\s+/g, '');
     if (/^[0-9a-fA-F]{16}$/.test(hexClean)) {
       try {
         const bigIntVal = BigInt(`0x${hexClean}`);
@@ -23,10 +50,10 @@ export function decimalToIEEE754Double(input: number | string, mode?: 'decimal' 
         numVal = float64[0];
         isHexInput = true;
       } catch {
-        numVal = NaN;
+        numVal = parseHexFloat(cleanInput);
       }
     } else {
-      numVal = NaN;
+      numVal = parseHexFloat(cleanInput);
     }
   } else {
     numVal = typeof input === 'number' ? input : parseFloat(cleanInput);

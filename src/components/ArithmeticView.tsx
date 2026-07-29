@@ -14,13 +14,16 @@ export const ArithmeticView: React.FC = () => {
   const isValidOperand = (val: string, mode: 'decimal' | 'hex') => {
     if (!val.trim()) return true;
     const clean = val.trim();
+    const hexClean = clean.replace(/^0x/i, '').replace(/\s+/g, '');
+    const isHex64 = /^[0-9a-fA-F]{16}$/.test(hexClean);
+    const isHexPrefixed = /^0x[0-9a-fA-F]+(\.[0-9a-fA-F]+)?$/i.test(clean);
+    const isSpecial = clean.toLowerCase().includes('nan') || clean.toLowerCase().includes('inf');
+    const isDecimal = !isNaN(parseFloat(clean)) && /^[+-]?[0-9]*\.?[0-9]+([eE][+-]?[0-9]+)?$/.test(clean);
+
     if (mode === 'hex') {
-      const hexClean = clean.replace(/^0x/i, '');
-      return /^[0-9a-fA-F]{16}$/.test(hexClean);
+      return isHex64 || isHexPrefixed || isSpecial;
     } else {
-      const isSpecial = clean.toLowerCase().includes('nan') || clean.toLowerCase().includes('inf');
-      const isDecimal = !isNaN(parseFloat(clean)) && /^[+-]?[0-9]*\.?[0-9]+([eE][+-]?[0-9]+)?$/.test(clean);
-      return isSpecial || isDecimal;
+      return isHex64 || isHexPrefixed || isSpecial || isDecimal;
     }
   };
 
@@ -41,11 +44,7 @@ export const ArithmeticView: React.FC = () => {
     }
 
     if (!isValidOperand(valA, mode) || !isValidOperand(valB, mode)) {
-      setErrorMessage(
-        mode === 'hex'
-          ? 'Invalid IEEE 754 64-bit hex string. Must be 16 hexadecimal characters (0-9, A-F).'
-          : 'Invalid operand format. Enter valid decimal values.'
-      );
+      setErrorMessage('Invalid operand format. Enter valid decimal or hexadecimal values.');
       setHasComputed(false);
       return;
     }

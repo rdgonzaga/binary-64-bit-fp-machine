@@ -10,14 +10,16 @@ export const ConversionView: React.FC = () => {
   const validateInput = (val: string, mode: 'decimal' | 'hex'): boolean => {
     const clean = val.trim();
     if (!clean) return true;
+    const hexClean = clean.replace(/^0x/i, '').replace(/\s+/g, '');
+    const isHex64 = /^[0-9a-fA-F]{16}$/.test(hexClean);
+    const isHexPrefixed = /^0x[0-9a-fA-F]+(\.[0-9a-fA-F]+)?$/i.test(clean);
+    const isSpecial = clean.toLowerCase().includes('nan') || clean.toLowerCase().includes('inf');
+    const isDecimal = !isNaN(parseFloat(clean)) && /^[+-]?[0-9]*\.?[0-9]+([eE][+-]?[0-9]+)?$/.test(clean);
 
     if (mode === 'hex') {
-      const hexClean = clean.replace(/^0x/i, '');
-      return /^[0-9a-fA-F]{16}$/.test(hexClean);
+      return isHex64 || isHexPrefixed || isSpecial;
     } else {
-      const isSpecial = clean.toLowerCase().includes('nan') || clean.toLowerCase().includes('inf');
-      const isDecimal = !isNaN(parseFloat(clean)) && /^[+-]?[0-9]*\.?[0-9]+([eE][+-]?[0-9]+)?$/.test(clean);
-      return isSpecial || isDecimal;
+      return isHex64 || isHexPrefixed || isSpecial || isDecimal;
     }
   };
 
