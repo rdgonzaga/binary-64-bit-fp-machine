@@ -3,28 +3,30 @@ import { IEEE754Double, RoundingResult, ArithmeticResult, ArithmeticStep } from 
 /**
  * Converts a number or input string (decimal or hex) to IEEE 754 double precision object.
  */
-export function decimalToIEEE754Double(input: number | string): IEEE754Double {
+export function decimalToIEEE754Double(input: number | string, mode?: 'decimal' | 'hex'): IEEE754Double {
   let numVal: number;
   let isHexInput = false;
-  let rawBitsStr = '';
 
   const cleanInput = typeof input === 'string' ? input.trim() : String(input);
 
   // Check if input is hexadecimal e.g., 0x40177082EFAC4240 or 16-hex characters
-  if (typeof input === 'string' && (cleanInput.startsWith('0x') || cleanInput.startsWith('0X') || /^[0-9a-fA-F]{16}$/.test(cleanInput))) {
-    try {
-      const hexClean = cleanInput.replace(/^0x/i, '').padStart(16, '0');
-      const bigIntVal = BigInt(`0x${hexClean}`);
-      const buffer = new ArrayBuffer(8);
-      const bigUint64 = new BigUint64Array(buffer);
-      const float64 = new Float64Array(buffer);
-      
-      bigUint64[0] = bigIntVal;
-      numVal = float64[0];
-      isHexInput = true;
-      rawBitsStr = bigIntVal.toString(2).padStart(64, '0');
-    } catch {
-      numVal = parseFloat(cleanInput);
+  if (mode === 'hex' || (mode === undefined && typeof input === 'string' && (cleanInput.startsWith('0x') || cleanInput.startsWith('0X') || /^[0-9a-fA-F]{16}$/.test(cleanInput)))) {
+    const hexClean = cleanInput.replace(/^0x/i, '');
+    if (/^[0-9a-fA-F]{16}$/.test(hexClean)) {
+      try {
+        const bigIntVal = BigInt(`0x${hexClean}`);
+        const buffer = new ArrayBuffer(8);
+        const bigUint64 = new BigUint64Array(buffer);
+        const float64 = new Float64Array(buffer);
+        
+        bigUint64[0] = bigIntVal;
+        numVal = float64[0];
+        isHexInput = true;
+      } catch {
+        numVal = NaN;
+      }
+    } else {
+      numVal = NaN;
     }
   } else {
     numVal = typeof input === 'number' ? input : parseFloat(cleanInput);
@@ -297,10 +299,13 @@ function roundDecimalString(decStr: string, targetDigits: number): RoundingResul
 export function performGRSArithmetic(
   opAStr: string,
   opBStr: string,
-  operation: '+' | '*'
+  operation: '+' | '*',
+  mode?: 'decimal' | 'hex'
 ): ArithmeticResult {
-  const ieeeA = decimalToIEEE754Double(opAStr || '5.859874482048838');
-  const ieeeB = decimalToIEEE754Double(opBStr || '1.0');
+  const defaultA = mode === 'hex' ? '0x40177082EFAC4240' : '5.859874482048838';
+  const defaultB = mode === 'hex' ? '0x3FF0000000000000' : '1.0';
+  const ieeeA = decimalToIEEE754Double(opAStr || defaultA, mode);
+  const ieeeB = decimalToIEEE754Double(opBStr || defaultB, mode);
 
   const steps: ArithmeticStep[] = [];
 

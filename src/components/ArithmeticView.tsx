@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import { performGRSArithmetic } from '../utils/ieee754';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronDown, ChevronUp, X } from 'lucide-react';
 
 export const ArithmeticView: React.FC = () => {
+  const [inputMode, setInputMode] = useState<'decimal' | 'hex'>('decimal');
   const [opA, setOpA] = useState<string>('');
   const [opB, setOpB] = useState<string>('');
   const [operation, setOperation] = useState<'+' | '*'>('+');
@@ -10,17 +11,22 @@ export const ArithmeticView: React.FC = () => {
   const [hasComputed, setHasComputed] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const isValidOperand = (val: string) => {
+  const isValidOperand = (val: string, mode: 'decimal' | 'hex') => {
     if (!val.trim()) return true;
     const clean = val.trim();
-    const isHex = clean.startsWith('0x') || clean.startsWith('0X') || /^[0-9a-fA-F]{16}$/.test(clean);
-    const isSpecial = clean.toLowerCase().includes('nan') || clean.toLowerCase().includes('inf');
-    const isDecimal = !isNaN(parseFloat(clean)) && /^[+-]?[0-9]*\.?[0-9]+([eE][+-]?[0-9]+)?$/.test(clean);
-    return isHex || isSpecial || isDecimal;
+    if (mode === 'hex') {
+      const hexClean = clean.replace(/^0x/i, '');
+      return /^[0-9a-fA-F]{16}$/.test(hexClean);
+    } else {
+      const isSpecial = clean.toLowerCase().includes('nan') || clean.toLowerCase().includes('inf');
+      const isDecimal = !isNaN(parseFloat(clean)) && /^[+-]?[0-9]*\.?[0-9]+([eE][+-]?[0-9]+)?$/.test(clean);
+      return isSpecial || isDecimal;
+    }
   };
 
-  const handleCompute = (customA?: string, customB?: string, customOp?: '+' | '*') => {
+  const handleCompute = (customA?: string, customB?: string, customOp?: '+' | '*', customMode?: 'decimal' | 'hex') => {
     setErrorMessage(null);
+    const mode = customMode !== undefined ? customMode : inputMode;
     const targetA = customA !== undefined ? customA : opA;
     const targetB = customB !== undefined ? customB : opB;
     const targetOp = customOp !== undefined ? customOp : operation;
@@ -34,22 +40,33 @@ export const ArithmeticView: React.FC = () => {
       return;
     }
 
-    if (!isValidOperand(valA) || !isValidOperand(valB)) {
-      setErrorMessage('Invalid operand format. Enter valid decimal or hex values.');
+    if (!isValidOperand(valA, mode) || !isValidOperand(valB, mode)) {
+      setErrorMessage(
+        mode === 'hex'
+          ? 'Invalid IEEE 754 64-bit hex string. Must be 16 hexadecimal characters (0-9, A-F).'
+          : 'Invalid operand format. Enter valid decimal values.'
+      );
       setHasComputed(false);
       return;
     }
 
+    if (customMode) setInputMode(mode);
     setOpA(valA);
     setOpB(valB);
     if (customOp) setOperation(targetOp);
     setHasComputed(true);
   };
 
+  const handleModeChange = (nextMode: 'decimal' | 'hex') => {
+    setInputMode(nextMode);
+    setErrorMessage(null);
+    setHasComputed(false);
+  };
+
   const arithmeticData = useMemo(() => {
     if (!hasComputed) return null;
-    return performGRSArithmetic(opA || '5.859874482048838', opB || '1.0', operation);
-  }, [hasComputed, opA, opB, operation]);
+    return performGRSArithmetic(opA, opB, operation, inputMode);
+  }, [hasComputed, opA, opB, operation, inputMode]);
 
   // Main table helper (used in the Final Results section)
   const renderIEEETable = (label: string, sign: string, exponent: string, mantissa: string) => (
@@ -105,14 +122,44 @@ export const ArithmeticView: React.FC = () => {
     <div className="max-w-5xl mx-auto px-4 py-6 space-y-8">
       {/* Control Bar */}
       <div className="bg-white rounded-2xl sm:rounded-3xl border border-zinc-900 p-3 sm:p-4 flex flex-wrap sm:flex-nowrap items-center gap-3 shadow-xs">
+        {/* Clear Button */}
+        <button
+          id="btn-clear-arithmetic"
+          onClick={() => {
+            setOpA('');
+            setOpB('');
+            setHasComputed(false);
+            setErrorMessage(null);
+          }}
+          disabled={!opA && !opB}
+          title="Clear inputs"
+          className="bg-white border border-zinc-900 hover:bg-zinc-50 disabled:opacity-40 disabled:cursor-not-allowed text-[#695C53] font-mono text-sm font-semibold px-4 py-2.5 rounded-xl transition-all cursor-pointer shadow-2xs hover:scale-105 active:scale-95 inline-flex items-center gap-1.5"
+        >
+          <X className="w-4 h-4" />
+          Clear
+        </button>
+
+        {/* Compute Button */}
         <button
           id="btn-compute"
           onClick={() => handleCompute()}
-          className="bg-[#A6D5EC] border border-zinc-900 hover:bg-[#96C8E0] text-[#695C53] font-mono text-sm font-semibold px-8 py-3 rounded-xl sm:rounded-2xl transition-all cursor-pointer shadow-2xs hover:scale-105 active:scale-95"
+          className="bg-[#A6D5EC] border border-zinc-900 hover:bg-[#96C8E0] text-[#695C53] font-mono text-sm font-semibold px-6 py-2.5 rounded-xl sm:rounded-2xl transition-all cursor-pointer shadow-2xs hover:scale-105 active:scale-95"
         >
           Compute
         </button>
 
+        {/* Mode Dropdown Select */}
+        <select
+          id="select-arithmetic-mode"
+          value={inputMode}
+          onChange={(e) => handleModeChange(e.target.value as 'decimal' | 'hex')}
+          className="bg-white border border-zinc-900 rounded-xl px-4 py-2.5 font-mono text-sm text-[#695C53] outline-none cursor-pointer hover:bg-zinc-50 font-medium"
+        >
+          <option value="decimal">Decimal Input</option>
+          <option value="hex">Hexadecimal Input</option>
+        </select>
+
+        {/* Operand A Input */}
         <input
           id="input-operand-a"
           type="text"
@@ -121,10 +168,11 @@ export const ArithmeticView: React.FC = () => {
             setOpA(e.target.value);
             setHasComputed(false);
           }}
-          placeholder="Operand A (decimal or hex)..."
-          className="bg-white border border-zinc-900 rounded-xl sm:rounded-2xl px-5 py-3 font-mono text-sm sm:text-base flex-1 outline-none text-[#695C53] placeholder-[#695C53]/50 focus:ring-2 focus:ring-zinc-800 min-w-[140px]"
+          placeholder={inputMode === 'hex' ? 'Operand A (16-hex string e.g. 0x40177...)' : 'Operand A (decimal)...'}
+          className="bg-white border border-zinc-900 rounded-xl sm:rounded-2xl px-5 py-2.5 font-mono text-sm sm:text-base flex-1 outline-none text-[#695C53] placeholder-[#695C53]/50 focus:ring-2 focus:ring-zinc-800 min-w-[140px]"
         />
 
+        {/* Operator Toggle Buttons */}
         <div className="flex items-center gap-1.5">
           <button
             id="btn-op-add"
@@ -158,6 +206,7 @@ export const ArithmeticView: React.FC = () => {
           </button>
         </div>
 
+        {/* Operand B Input */}
         <input
           id="input-operand-b"
           type="text"
@@ -166,8 +215,8 @@ export const ArithmeticView: React.FC = () => {
             setOpB(e.target.value);
             setHasComputed(false);
           }}
-          placeholder="Operand B (decimal or hex)..."
-          className="bg-white border border-zinc-900 rounded-xl sm:rounded-2xl px-5 py-3 font-mono text-sm sm:text-base flex-1 outline-none text-[#695C53] placeholder-[#695C53]/50 focus:ring-2 focus:ring-zinc-800 min-w-[140px]"
+          placeholder={inputMode === 'hex' ? 'Operand B (16-hex string e.g. 0x3FF00...)' : 'Operand B (decimal)...'}
+          className="bg-white border border-zinc-900 rounded-xl sm:rounded-2xl px-5 py-2.5 font-mono text-sm sm:text-base flex-1 outline-none text-[#695C53] placeholder-[#695C53]/50 focus:ring-2 focus:ring-zinc-800 min-w-[140px]"
         />
       </div>
 
@@ -184,24 +233,43 @@ export const ArithmeticView: React.FC = () => {
       {/* Quick Example Presets */}
       <div className="flex flex-wrap items-center gap-2 px-2 text-xs font-mono text-[#695C53]/50">
         <span className="font-semibold text-[#695C53]">Sample Computations:</span>
-        <button
-          onClick={() => handleCompute('5.859874482048838', '1.0', '+')}
-          className="px-3 py-1 bg-white border border-zinc-800 rounded-lg hover:bg-zinc-100 cursor-pointer text-[#695C53] transition-colors"
-        >
-          5.85987 + 1.0
-        </button>
-        <button
-          onClick={() => handleCompute('0.1', '0.2', '+')}
-          className="px-3 py-1 bg-white border border-zinc-800 rounded-lg hover:bg-zinc-100 cursor-pointer text-[#695C53] transition-colors"
-        >
-          0.1 + 0.2
-        </button>
-        <button
-          onClick={() => handleCompute('0x40177082EFAC4240', '2.5', '*')}
-          className="px-3 py-1 bg-white border border-zinc-800 rounded-lg hover:bg-zinc-100 cursor-pointer text-[#695C53] transition-colors"
-        >
-          0x401770... × 2.5
-        </button>
+        {inputMode === 'hex' ? (
+          <>
+            <button
+              onClick={() => handleCompute('0x40177082EFAC4240', '0x3FF0000000000000', '+', 'hex')}
+              className="px-3 py-1 bg-white border border-zinc-800 rounded-lg hover:bg-zinc-100 cursor-pointer text-[#695C53] transition-colors"
+            >
+              0x401770... + 0x3FF000...
+            </button>
+            <button
+              onClick={() => handleCompute('0x40177082EFAC4240', '0x4004000000000000', '*', 'hex')}
+              className="px-3 py-1 bg-white border border-zinc-800 rounded-lg hover:bg-zinc-100 cursor-pointer text-[#695C53] transition-colors"
+            >
+              0x401770... × 0x400400...
+            </button>
+          </>
+        ) : (
+          <>
+            <button
+              onClick={() => handleCompute('5.859874482048838', '1.0', '+', 'decimal')}
+              className="px-3 py-1 bg-white border border-zinc-800 rounded-lg hover:bg-zinc-100 cursor-pointer text-[#695C53] transition-colors"
+            >
+              5.85987 + 1.0
+            </button>
+            <button
+              onClick={() => handleCompute('0.1', '0.2', '+', 'decimal')}
+              className="px-3 py-1 bg-white border border-zinc-800 rounded-lg hover:bg-zinc-100 cursor-pointer text-[#695C53] transition-colors"
+            >
+              0.1 + 0.2
+            </button>
+            <button
+              onClick={() => handleCompute('5.8598744', '2.5', '*', 'decimal')}
+              className="px-3 py-1 bg-white border border-zinc-800 rounded-lg hover:bg-zinc-100 cursor-pointer text-[#695C53] transition-colors"
+            >
+              5.8598744 × 2.5
+            </button>
+          </>
+        )}
       </div>
 
       {hasComputed && arithmeticData ? (
