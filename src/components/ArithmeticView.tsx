@@ -11,47 +11,84 @@ export const ArithmeticView: React.FC = () => {
   const [hasComputed, setHasComputed] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const isValidOperand = (val: string, mode: 'decimal' | 'hex') => {
-    if (!val.trim()) return true;
+  // Helper to sanitize & pad hex strings to 16 hex digits
+  const padHex = (val: string): string => {
+    const hexClean = val.trim().replace(/^0x/i, '').replace(/\s+/g, '');
+    return hexClean.padStart(16, '0');
+  };
+
+  const isValidOperand = (val: string, mode: 'decimal' | 'hex'): boolean => {
     const clean = val.trim();
-    const hexClean = clean.replace(/^0x/i, '').replace(/\s+/g, '');
-    const isHex64 = /^[0-9a-fA-F]{16}$/.test(hexClean);
-    const isHexPrefixed = /^0x[0-9a-fA-F]+(\.[0-9a-fA-F]+)?$/i.test(clean);
-    const isSpecial = clean.toLowerCase().includes('nan') || clean.toLowerCase().includes('inf');
-    const isDecimal = !isNaN(parseFloat(clean)) && /^[+-]?[0-9]*\.?[0-9]+([eE][+-]?[0-9]+)?$/.test(clean);
+    if (!clean) return true;
 
     if (mode === 'hex') {
-      return isHex64 || isHexPrefixed || isSpecial;
+      const hexClean = clean.replace(/^0x/i, '').replace(/\s+/g, '');
+      return /^[0-9a-fA-F]{1,16}$/.test(hexClean);
     } else {
-      return isHex64 || isHexPrefixed || isSpecial || isDecimal;
+      const hexClean = clean.replace(/^0x/i, '').replace(/\s+/g, '');
+      const isHex = /^[0-9a-fA-F]{1,16}$/.test(hexClean);
+      const isSpecial = clean.toLowerCase().includes('nan') || clean.toLowerCase().includes('inf');
+      const isDecimal = !isNaN(parseFloat(clean)) && /^[+-]?[0-9]*\.?[0-9]+([eE][+-]?[0-9]+)?$/.test(clean);
+
+      return isHex || isSpecial || isDecimal;
     }
   };
 
   const handleCompute = (customA?: string, customB?: string, customOp?: '+' | '*', customMode?: 'decimal' | 'hex') => {
     setErrorMessage(null);
     const mode = customMode !== undefined ? customMode : inputMode;
-    const targetA = customA !== undefined ? customA : opA;
-    const targetB = customB !== undefined ? customB : opB;
+    const rawA = customA !== undefined ? customA : opA;
+    const rawB = customB !== undefined ? customB : opB;
     const targetOp = customOp !== undefined ? customOp : operation;
 
-    const valA = targetA.trim();
-    const valB = targetB.trim();
+    const valA = rawA.trim();
+    const valB = rawB.trim();
 
-    if (!valA || !valB) {
+    // 1. Check for missing operands
+    if (!valA && !valB) {
       setErrorMessage('Please enter both Operand A and Operand B.');
       setHasComputed(false);
       return;
-    }
-
-    if (!isValidOperand(valA, mode) || !isValidOperand(valB, mode)) {
-      setErrorMessage('Invalid operand format. Enter valid decimal or hexadecimal values.');
+    } else if (!valA) {
+      setErrorMessage('Please enter Operand A.');
+      setHasComputed(false);
+      return;
+    } else if (!valB) {
+      setErrorMessage('Please enter Operand B.');
       setHasComputed(false);
       return;
     }
 
+    // 2. Validate format of each operand individually
+    const validA = isValidOperand(valA, mode);
+    const validB = isValidOperand(valB, mode);
+
+    if (!validA && !validB) {
+      setErrorMessage('Both Operand A and Operand B formats are invalid.');
+      setHasComputed(false);
+      return;
+    } else if (!validA) {
+      setErrorMessage('Operand A format is invalid.');
+      setHasComputed(false);
+      return;
+    } else if (!validB) {
+      setErrorMessage('Operand B format is invalid.');
+      setHasComputed(false);
+      return;
+    }
+
+    // 3. If hex mode, auto-pad inputs to 16 characters
+    let finalA = valA;
+    let finalB = valB;
+
+    if (mode === 'hex') {
+      finalA = padHex(valA);
+      finalB = padHex(valB);
+    }
+
     if (customMode) setInputMode(mode);
-    setOpA(valA);
-    setOpB(valB);
+    setOpA(finalA);
+    setOpB(finalB);
     if (customOp) setOperation(targetOp);
     setHasComputed(true);
   };
@@ -158,18 +195,32 @@ export const ArithmeticView: React.FC = () => {
           <option value="hex">Hexadecimal Input</option>
         </select>
 
-        {/* Operand A Input */}
-        <input
-          id="input-operand-a"
-          type="text"
-          value={opA}
-          onChange={(e) => {
-            setOpA(e.target.value);
-            setHasComputed(false);
-          }}
-          placeholder={inputMode === 'hex' ? 'Operand A (16-hex string e.g. 0x40177...)' : 'Operand A (decimal)...'}
-          className="bg-white border border-zinc-900 rounded-xl sm:rounded-2xl px-5 py-2.5 font-mono text-sm sm:text-base flex-1 outline-none text-[#695C53] placeholder-[#695C53]/50 focus:ring-2 focus:ring-zinc-800 min-w-[140px]"
-        />
+        {/* Operand A Input with optional 0x Box */}
+        <div className="flex flex-1 min-w-[150px]">
+          {inputMode === 'hex' && (
+            <div
+              className="flex items-center justify-center px-3.5 bg-zinc-100 border border-zinc-900 border-r-0 rounded-l-xl sm:rounded-l-2xl font-mono text-sm text-[#695C53] select-none"
+              aria-hidden="true"
+            >
+              0x
+            </div>
+          )}
+          <input
+            id="input-operand-a"
+            type="text"
+            value={opA}
+            onChange={(e) => {
+              setOpA(e.target.value);
+              setHasComputed(false);
+            }}
+            placeholder={inputMode === 'hex' ? 'Operand A (1-16 hex chars)...' : 'Operand A (decimal)...'}
+            className={`bg-white border border-zinc-900 px-4 py-2.5 font-mono text-sm sm:text-base flex-1 min-w-0 outline-none text-[#695C53] placeholder-[#695C53]/50 focus:ring-2 focus:ring-zinc-800 ${
+              inputMode === 'hex'
+                ? 'rounded-r-xl sm:rounded-r-2xl'
+                : 'rounded-xl sm:rounded-2xl'
+            }`}
+          />
+        </div>
 
         {/* Operator Toggle Buttons */}
         <div className="flex items-center gap-1.5">
@@ -205,18 +256,32 @@ export const ArithmeticView: React.FC = () => {
           </button>
         </div>
 
-        {/* Operand B Input */}
-        <input
-          id="input-operand-b"
-          type="text"
-          value={opB}
-          onChange={(e) => {
-            setOpB(e.target.value);
-            setHasComputed(false);
-          }}
-          placeholder={inputMode === 'hex' ? 'Operand B (16-hex string e.g. 0x3FF00...)' : 'Operand B (decimal)...'}
-          className="bg-white border border-zinc-900 rounded-xl sm:rounded-2xl px-5 py-2.5 font-mono text-sm sm:text-base flex-1 outline-none text-[#695C53] placeholder-[#695C53]/50 focus:ring-2 focus:ring-zinc-800 min-w-[140px]"
-        />
+        {/* Operand B Input with optional 0x Box */}
+        <div className="flex flex-1 min-w-[150px]">
+          {inputMode === 'hex' && (
+            <div
+              className="flex items-center justify-center px-3.5 bg-zinc-100 border border-zinc-900 border-r-0 rounded-l-xl sm:rounded-l-2xl font-mono text-sm text-[#695C53] select-none"
+              aria-hidden="true"
+            >
+              0x
+            </div>
+          )}
+          <input
+            id="input-operand-b"
+            type="text"
+            value={opB}
+            onChange={(e) => {
+              setOpB(e.target.value);
+              setHasComputed(false);
+            }}
+            placeholder={inputMode === 'hex' ? 'Operand B (1-16 hex chars)...' : 'Operand B (decimal)...'}
+            className={`bg-white border border-zinc-900 px-4 py-2.5 font-mono text-sm sm:text-base flex-1 min-w-0 outline-none text-[#695C53] placeholder-[#695C53]/50 focus:ring-2 focus:ring-zinc-800 ${
+              inputMode === 'hex'
+                ? 'rounded-r-xl sm:rounded-r-2xl'
+                : 'rounded-xl sm:rounded-2xl'
+            }`}
+          />
+        </div>
       </div>
 
       {/* Error Notice */}
@@ -235,13 +300,13 @@ export const ArithmeticView: React.FC = () => {
         {inputMode === 'hex' ? (
           <>
             <button
-              onClick={() => handleCompute('0x40177082EFAC4240', '0x3FF0000000000000', '+', 'hex')}
+              onClick={() => handleCompute('40177082EFAC4240', '3FF0000000000000', '+', 'hex')}
               className="px-3 py-1 bg-white border border-zinc-800 rounded-lg hover:bg-zinc-100 cursor-pointer text-[#695C53] transition-colors"
             >
               0x401770... + 0x3FF000...
             </button>
             <button
-              onClick={() => handleCompute('0x40177082EFAC4240', '0x4004000000000000', '*', 'hex')}
+              onClick={() => handleCompute('40177082EFAC4240', '4004000000000000', '*', 'hex')}
               className="px-3 py-1 bg-white border border-zinc-800 rounded-lg hover:bg-zinc-100 cursor-pointer text-[#695C53] transition-colors"
             >
               0x401770... × 0x400400...
@@ -310,7 +375,7 @@ export const ArithmeticView: React.FC = () => {
             </div>
           </div>
 
-          {/* SYMBOLAB-INSPIRED STEPS SECTION */}
+          {/* Solution Steps Section */}
           <div className="bg-white border border-zinc-900 rounded-3xl p-6 sm:p-10 shadow-xs mt-4">
             <div className="flex items-center justify-between mb-8 pb-4 border-b border-zinc-200">
               <h2 className="text-xl font-semibold text-[#695C53]">Solution Steps</h2>
@@ -364,7 +429,7 @@ export const ArithmeticView: React.FC = () => {
                         </div>
                       )}
 
-                      {/* CONDITIONAL RENDERING FOR STEP 1 VISUALIZATION */}
+                      {/* Conditional rendering for Step 1 vs standard step */}
                       {step.stepNumber === 1 ? (
                         <div className="bg-zinc-50/80 border-l-4 border-blue-400 p-4 sm:p-5 rounded-r-xl shadow-inner mt-4">
                           {arithmeticData.operandA && 
