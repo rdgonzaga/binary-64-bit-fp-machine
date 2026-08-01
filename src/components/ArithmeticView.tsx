@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import { performGRSArithmetic } from '../utils/ieee754';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronDown, ChevronUp, X } from 'lucide-react';
 
 export const ArithmeticView: React.FC = () => {
+  const [inputMode, setInputMode] = useState<'decimal' | 'hex'>('decimal');
   const [opA, setOpA] = useState<string>('');
   const [opB, setOpB] = useState<string>('');
   const [operation, setOperation] = useState<'+' | '*'>('+');
@@ -10,17 +11,25 @@ export const ArithmeticView: React.FC = () => {
   const [hasComputed, setHasComputed] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const isValidOperand = (val: string) => {
+  const isValidOperand = (val: string, mode: 'decimal' | 'hex') => {
     if (!val.trim()) return true;
     const clean = val.trim();
-    const isHex = clean.startsWith('0x') || clean.startsWith('0X') || /^[0-9a-fA-F]{16}$/.test(clean);
+    const hexClean = clean.replace(/^0x/i, '').replace(/\s+/g, '');
+    const isHex64 = /^[0-9a-fA-F]{16}$/.test(hexClean);
+    const isHexPrefixed = /^0x[0-9a-fA-F]+(\.[0-9a-fA-F]+)?$/i.test(clean);
     const isSpecial = clean.toLowerCase().includes('nan') || clean.toLowerCase().includes('inf');
     const isDecimal = !isNaN(parseFloat(clean)) && /^[+-]?[0-9]*\.?[0-9]+([eE][+-]?[0-9]+)?$/.test(clean);
-    return isHex || isSpecial || isDecimal;
+
+    if (mode === 'hex') {
+      return isHex64 || isHexPrefixed || isSpecial;
+    } else {
+      return isHex64 || isHexPrefixed || isSpecial || isDecimal;
+    }
   };
 
-  const handleCompute = (customA?: string, customB?: string, customOp?: '+' | '*') => {
+  const handleCompute = (customA?: string, customB?: string, customOp?: '+' | '*', customMode?: 'decimal' | 'hex') => {
     setErrorMessage(null);
+    const mode = customMode !== undefined ? customMode : inputMode;
     const targetA = customA !== undefined ? customA : opA;
     const targetB = customB !== undefined ? customB : opB;
     const targetOp = customOp !== undefined ? customOp : operation;
@@ -34,40 +43,120 @@ export const ArithmeticView: React.FC = () => {
       return;
     }
 
-    if (!isValidOperand(valA) || !isValidOperand(valB)) {
-      setErrorMessage('Invalid operand format. Enter valid decimal or hex values.');
+    if (!isValidOperand(valA, mode) || !isValidOperand(valB, mode)) {
+      setErrorMessage('Invalid operand format. Enter valid decimal or hexadecimal values.');
       setHasComputed(false);
       return;
     }
 
+    if (customMode) setInputMode(mode);
     setOpA(valA);
     setOpB(valB);
     if (customOp) setOperation(targetOp);
     setHasComputed(true);
   };
 
-  // Compute GRS arithmetic result when computed
+  const handleModeChange = (nextMode: 'decimal' | 'hex') => {
+    setInputMode(nextMode);
+    setErrorMessage(null);
+    setHasComputed(false);
+  };
+
   const arithmeticData = useMemo(() => {
     if (!hasComputed) return null;
-    return performGRSArithmetic(opA || '5.859874482048838', opB || '1.0', operation);
-  }, [hasComputed, opA, opB, operation]);
+    return performGRSArithmetic(opA, opB, operation, inputMode);
+  }, [hasComputed, opA, opB, operation, inputMode]);
 
-  const formatBitGroup = (bitsStr: string) => {
-    return bitsStr.split('').join(' ');
-  };
+  // Main table helper (used in the Final Results section)
+  const renderIEEETable = (label: string, sign: string, exponent: string, mantissa: string) => (
+    <div className="w-full">
+      <h3 className="text-sm font-semibold text-zinc-700 mb-2 ml-1">{label}</h3>
+      <div className="bg-white border border-zinc-200 rounded-2xl shadow-sm overflow-hidden flex flex-col w-full">
+        <div className="flex bg-zinc-50 border-b border-zinc-200 text-[10px] sm:text-xs font-semibold text-zinc-500 uppercase tracking-wider divide-x divide-zinc-200">
+          <div className="w-14 sm:w-20 py-2.5 text-center shrink-0">Sign</div>
+          <div className="w-24 sm:w-36 py-2.5 text-center shrink-0">Bias</div>
+          <div className="flex-1 py-2.5 px-4 text-left sm:text-center">Mantissa</div>
+        </div>
+        <div className="flex font-mono text-zinc-800 divide-x divide-zinc-200 bg-white">
+          <div className="w-14 sm:w-20 py-4 flex items-center justify-center shrink-0 bg-zinc-50/30 text-xs sm:text-sm">
+            {sign}
+          </div>
+          <div className="w-24 sm:w-36 py-4 flex items-center justify-center shrink-0 tracking-widest bg-zinc-50/30 text-[10px] sm:text-xs">
+            {exponent}
+          </div>
+          <div className="flex-1 py-4 px-4 flex items-center sm:justify-center tracking-widest break-all text-xs sm:text-sm">
+            {mantissa.match(/.{1,4}/g)?.join(' ') || mantissa}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Mini table helper (used specifically for Step 1 breakdown)
+  const renderMiniIEEETable = (label: string, sign: string, exponent: string, mantissa: string) => (
+    <div className="w-full mb-4 last:mb-0">
+      <h5 className="text-xs font-semibold text-zinc-600 mb-1.5 ml-1">{label}</h5>
+      <div className="bg-white border border-zinc-200 rounded-xl shadow-sm overflow-hidden flex flex-col w-full">
+        <div className="flex bg-zinc-50 border-b border-zinc-200 text-[9px] font-semibold text-zinc-500 uppercase tracking-wider divide-x divide-zinc-200">
+          <div className="w-10 sm:w-14 py-1.5 text-center shrink-0">Sign</div>
+          <div className="w-16 sm:w-24 py-1.5 text-center shrink-0">Bias</div>
+          <div className="flex-1 py-1.5 px-3 text-left sm:text-center">Mantissa</div>
+        </div>
+        <div className="flex font-mono text-zinc-800 divide-x divide-zinc-200 bg-white">
+          <div className="w-10 sm:w-14 py-2 flex items-center justify-center shrink-0 bg-zinc-50/30 text-[12px]">
+            {sign}
+          </div>
+          <div className="w-16 sm:w-24 py-2 flex items-center justify-center shrink-0 bg-zinc-50/30 text-[9px] sm:text-[11px] tracking-widest">
+            {exponent}
+          </div>
+          <div className="flex-1 py-2 px-3 flex items-center sm:justify-center tracking-widest break-all text-[10px] sm:text-xs">
+            {mantissa.match(/.{1,4}/g)?.join(' ') || mantissa}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-6 space-y-8">
       {/* Control Bar */}
       <div className="bg-white rounded-2xl sm:rounded-3xl border border-zinc-900 p-3 sm:p-4 flex flex-wrap sm:flex-nowrap items-center gap-3 shadow-xs">
+        {/* Clear Button */}
+        <button
+          id="btn-clear-arithmetic"
+          onClick={() => {
+            setOpA('');
+            setOpB('');
+            setHasComputed(false);
+            setErrorMessage(null);
+          }}
+          disabled={!opA && !opB}
+          title="Clear inputs"
+          className="bg-white border border-zinc-900 hover:bg-zinc-50 disabled:opacity-40 disabled:cursor-not-allowed text-[#695C53] font-mono text-sm font-semibold px-4 py-2.5 rounded-xl transition-all cursor-pointer shadow-2xs hover:scale-105 active:scale-95 inline-flex items-center gap-1.5"
+        >
+          <X className="w-4 h-4" />
+          Clear
+        </button>
+
         {/* Compute Button */}
         <button
           id="btn-compute"
           onClick={() => handleCompute()}
-          className="bg-[#A6D5EC] border border-zinc-900 hover:bg-[#96C8E0] text-[#695C53] font-mono text-sm font-semibold px-8 py-3 rounded-xl sm:rounded-2xl transition-all cursor-pointer shadow-2xs hover:scale-105 active:scale-95"
+          className="bg-[#A6D5EC] border border-zinc-900 hover:bg-[#96C8E0] text-[#695C53] font-mono text-sm font-semibold px-6 py-2.5 rounded-xl sm:rounded-2xl transition-all cursor-pointer shadow-2xs hover:scale-105 active:scale-95"
         >
           Compute
         </button>
+
+        {/* Mode Dropdown Select */}
+        <select
+          id="select-arithmetic-mode"
+          value={inputMode}
+          onChange={(e) => handleModeChange(e.target.value as 'decimal' | 'hex')}
+          className="bg-white border border-zinc-900 rounded-xl px-4 py-2.5 font-mono text-sm text-[#695C53] outline-none cursor-pointer hover:bg-zinc-50 font-medium"
+        >
+          <option value="decimal">Decimal Input</option>
+          <option value="hex">Hexadecimal Input</option>
+        </select>
 
         {/* Operand A Input */}
         <input
@@ -78,8 +167,8 @@ export const ArithmeticView: React.FC = () => {
             setOpA(e.target.value);
             setHasComputed(false);
           }}
-          placeholder="Operand A (decimal or hex)..."
-          className="bg-white border border-zinc-900 rounded-xl sm:rounded-2xl px-5 py-3 font-mono text-sm sm:text-base flex-1 outline-none text-[#695C53] placeholder-[#695C53]/50 focus:ring-2 focus:ring-zinc-800 min-w-[140px]"
+          placeholder={inputMode === 'hex' ? 'Operand A (16-hex string e.g. 0x40177...)' : 'Operand A (decimal)...'}
+          className="bg-white border border-zinc-900 rounded-xl sm:rounded-2xl px-5 py-2.5 font-mono text-sm sm:text-base flex-1 outline-none text-[#695C53] placeholder-[#695C53]/50 focus:ring-2 focus:ring-zinc-800 min-w-[140px]"
         />
 
         {/* Operator Toggle Buttons */}
@@ -125,8 +214,8 @@ export const ArithmeticView: React.FC = () => {
             setOpB(e.target.value);
             setHasComputed(false);
           }}
-          placeholder="Operand B (decimal or hex)..."
-          className="bg-white border border-zinc-900 rounded-xl sm:rounded-2xl px-5 py-3 font-mono text-sm sm:text-base flex-1 outline-none text-[#695C53] placeholder-[#695C53]/50 focus:ring-2 focus:ring-zinc-800 min-w-[140px]"
+          placeholder={inputMode === 'hex' ? 'Operand B (16-hex string e.g. 0x3FF00...)' : 'Operand B (decimal)...'}
+          className="bg-white border border-zinc-900 rounded-xl sm:rounded-2xl px-5 py-2.5 font-mono text-sm sm:text-base flex-1 outline-none text-[#695C53] placeholder-[#695C53]/50 focus:ring-2 focus:ring-zinc-800 min-w-[140px]"
         />
       </div>
 
@@ -143,152 +232,154 @@ export const ArithmeticView: React.FC = () => {
       {/* Quick Example Presets */}
       <div className="flex flex-wrap items-center gap-2 px-2 text-xs font-mono text-[#695C53]/50">
         <span className="font-semibold text-[#695C53]">Sample Computations:</span>
-        <button
-          onClick={() => handleCompute('5.859874482048838', '1.0', '+')}
-          className="px-3 py-1 bg-white border border-zinc-800 rounded-lg hover:bg-zinc-100 cursor-pointer text-[#695C53] transition-colors"
-        >
-          5.85987 + 1.0
-        </button>
-        <button
-          onClick={() => handleCompute('0.1', '0.2', '+')}
-          className="px-3 py-1 bg-white border border-zinc-800 rounded-lg hover:bg-zinc-100 cursor-pointer text-[#695C53] transition-colors"
-        >
-          0.1 + 0.2
-        </button>
-        <button
-          onClick={() => handleCompute('0x40177082EFAC4240', '2.5', '*')}
-          className="px-3 py-1 bg-white border border-zinc-800 rounded-lg hover:bg-zinc-100 cursor-pointer text-[#695C53] transition-colors"
-        >
-          0x401770... × 2.5
-        </button>
+        {inputMode === 'hex' ? (
+          <>
+            <button
+              onClick={() => handleCompute('0x40177082EFAC4240', '0x3FF0000000000000', '+', 'hex')}
+              className="px-3 py-1 bg-white border border-zinc-800 rounded-lg hover:bg-zinc-100 cursor-pointer text-[#695C53] transition-colors"
+            >
+              0x401770... + 0x3FF000...
+            </button>
+            <button
+              onClick={() => handleCompute('0x40177082EFAC4240', '0x4004000000000000', '*', 'hex')}
+              className="px-3 py-1 bg-white border border-zinc-800 rounded-lg hover:bg-zinc-100 cursor-pointer text-[#695C53] transition-colors"
+            >
+              0x401770... × 0x400400...
+            </button>
+          </>
+        ) : (
+          <>
+            <button
+              onClick={() => handleCompute('5.859874482048838', '1.0', '+', 'decimal')}
+              className="px-3 py-1 bg-white border border-zinc-800 rounded-lg hover:bg-zinc-100 cursor-pointer text-[#695C53] transition-colors"
+            >
+              5.85987 + 1.0
+            </button>
+            <button
+              onClick={() => handleCompute('0.1', '0.2', '+', 'decimal')}
+              className="px-3 py-1 bg-white border border-zinc-800 rounded-lg hover:bg-zinc-100 cursor-pointer text-[#695C53] transition-colors"
+            >
+              0.1 + 0.2
+            </button>
+            <button
+              onClick={() => handleCompute('5.8598744', '2.5', '*', 'decimal')}
+              className="px-3 py-1 bg-white border border-zinc-800 rounded-lg hover:bg-zinc-100 cursor-pointer text-[#695C53] transition-colors"
+            >
+              5.8598744 × 2.5
+            </button>
+          </>
+        )}
       </div>
 
       {hasComputed && arithmeticData ? (
         <>
-          {/* Result Card 1: Binary */}
-          <div>
-            <div className="inline-block bg-white border border-zinc-900 border-b-0 rounded-t-2xl px-6 py-2.5 font-mono text-sm font-semibold text-[#695C53] -mb-[1px] relative z-10 shadow-xs">
-              Binary
+          {/* Result Card 1: IEEE Tables for Operands & Result */}
+          <div className="bg-white border border-zinc-900 rounded-3xl p-6 sm:p-8 shadow-xs space-y-8">
+            <div className="flex items-center justify-between border-b border-zinc-200 pb-4">
+              <h2 className="text-xl font-semibold text-[#695C53]">Binary Breakdown</h2>
             </div>
-
-            <div className="bg-white border border-zinc-900 rounded-b-3xl rounded-tr-3xl p-6 sm:p-12 shadow-xs">
-              <div className="flex flex-col gap-6 max-w-4xl mx-auto">
-                {/* Top Row: Sign & Exponent */}
-                <div className="flex flex-col sm:flex-row items-stretch gap-4 sm:gap-6">
-                  {/* Sign Box */}
-                  <div className="flex flex-col items-center">
-                    <div className="bg-white border border-zinc-900 rounded-2xl px-6 py-4 font-mono text-base sm:text-lg font-normal text-[#695C53] text-center min-w-[80px] shadow-2xs">
-                      {arithmeticData.resultIEEE.signBit}
-                    </div>
-                    <span className="text-xs font-mono font-bold tracking-wider text-zinc-900 mt-2">sign</span>
-                  </div>
-
-                  {/* Exponent Box */}
-                  <div className="flex flex-col items-center flex-1 min-w-0">
-                    <div className="bg-white border border-zinc-900 rounded-2xl px-4 py-4 sm:px-6 font-mono text-base sm:text-lg font-normal text-[#695C53] text-center w-full shadow-2xs">
-                      <div className="flex flex-wrap justify-center gap-x-2 sm:gap-x-3 gap-y-1 font-mono tracking-widest">
-                        {formatBitGroup(arithmeticData.resultIEEE.exponentBits)}
-                      </div>
-                    </div>
-                    <span className="text-xs font-mono font-bold tracking-wider text-zinc-900 mt-2">exponent</span>
-                  </div>
-                </div>
-
-                {/* Bottom Row: Mantissa */}
-                <div className="flex flex-col items-center w-full">
-                  <div className="bg-white border border-zinc-900 rounded-2xl px-4 py-4 sm:px-6 font-mono text-base sm:text-lg font-normal text-[#695C53] text-center w-full shadow-2xs">
-                    <div className="flex flex-wrap justify-center gap-x-2.5 sm:gap-x-3.5 gap-y-1.5 font-mono">
-                      {arithmeticData.resultIEEE.mantissaBits.match(/.{1,4}/g)?.map((nibble, idx) => (
-                        <span key={idx} className="whitespace-nowrap tracking-wider">
-                          {nibble.split('').join(' ')}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                  <span className="text-xs font-mono font-bold tracking-wider text-zinc-900 mt-2">mantissa</span>
-                </div>
-              </div>
+            
+            <div className="space-y-6">
+              {arithmeticData.operandA && 
+                renderIEEETable('Operand A', arithmeticData.operandA.signBit, arithmeticData.operandA.exponentBits, arithmeticData.operandA.mantissaBits)
+              }
+              {arithmeticData.operandB && 
+                renderIEEETable('Operand B', arithmeticData.operandB.signBit, arithmeticData.operandB.exponentBits, arithmeticData.operandB.mantissaBits)
+              }
+              
+              {renderIEEETable('Final Result', arithmeticData.resultIEEE.signBit, arithmeticData.resultIEEE.exponentBits, arithmeticData.resultIEEE.mantissaBits)}
             </div>
           </div>
 
           {/* Result Card 2 & 3: Hexadecimal and Decimal Side-by-Side */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Hexadecimal */}
             <div className="bg-white border border-zinc-900 rounded-3xl p-6 shadow-xs">
-              <h3 className="text-xs font-mono font-medium text-[#695C53]/50 mb-2">Hexadecimal</h3>
-              <div className="border-t border-zinc-300 my-2"></div>
+              <h3 className="text-xs font-mono font-medium text-[#695C53]/50 mb-2">Final Hexadecimal</h3>
+              <div className="border-t border-zinc-200 my-2"></div>
               <div className="text-center py-4 overflow-x-auto font-mono text-xl sm:text-2xl font-semibold text-[#695C53] tracking-wider">
                 {arithmeticData.resultHexString}
               </div>
             </div>
 
-            {/* Decimal */}
             <div className="bg-white border border-zinc-900 rounded-3xl p-6 shadow-xs">
-              <h3 className="text-xs font-mono font-medium text-[#695C53]/50 mb-2">Decimal</h3>
-              <div className="border-t border-zinc-300 my-2"></div>
+              <h3 className="text-xs font-mono font-medium text-[#695C53]/50 mb-2">Final Decimal</h3>
+              <div className="border-t border-zinc-200 my-2"></div>
               <div className="text-center py-4 overflow-x-auto font-mono text-xl sm:text-2xl font-semibold text-[#695C53] tracking-wider">
                 {arithmeticData.resultDecimalString}
               </div>
             </div>
           </div>
 
-          {/* Card 4: Accordion Button "See Steps" */}
-          <div>
-            <button
-              id="btn-toggle-steps"
-              onClick={() => setShowSteps(!showSteps)}
-              className="bg-white border border-zinc-900 hover:bg-zinc-50 text-[#695C53] font-mono font-medium text-sm sm:text-base py-3.5 px-8 rounded-full w-full flex items-center justify-center gap-2 cursor-pointer shadow-xs transition-all"
-            >
-              <span>{showSteps ? 'Hide Steps' : 'See Steps'}</span>
-              {showSteps ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-            </button>
+          {/* SYMBOLAB-INSPIRED STEPS SECTION */}
+          <div className="bg-white border border-zinc-900 rounded-3xl p-6 sm:p-10 shadow-xs mt-4">
+            <div className="flex items-center justify-between mb-8 pb-4 border-b border-zinc-200">
+              <h2 className="text-xl font-semibold text-[#695C53]">Solution Steps</h2>
+              <button
+                id="btn-toggle-steps"
+                onClick={() => setShowSteps(!showSteps)}
+                className="text-sm font-semibold text-blue-600 hover:text-blue-800 transition-colors flex items-center gap-1 cursor-pointer"
+              >
+                <span>{showSteps ? 'Hide steps' : 'Show steps'}</span>
+                {showSteps ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </button>
+            </div>
 
-            {/* Expanded Steps Container */}
             {showSteps && (
-              <div className="mt-6 space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="relative border-l-2 border-zinc-100 ml-3 sm:ml-4 space-y-10 pb-4 animate-in fade-in slide-in-from-top-2 duration-300">
                 {arithmeticData.steps.map((step) => (
-                  <div
-                    key={step.stepNumber}
-                    className="bg-white border border-zinc-900 rounded-3xl p-6 shadow-xs space-y-3"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-mono font-bold px-3 py-1 bg-amber-100 text-amber-900 border border-amber-300 rounded-full">
-                        Step {step.stepNumber}
-                      </span>
-                      {step.grsStatus && (
-                        <div className="flex items-center gap-2 text-xs font-mono">
-                          <span className="px-2 py-0.5 bg-blue-100 text-blue-900 rounded border border-blue-200 font-semibold">
-                            G: {step.grsStatus.guard}
-                          </span>
-                          <span className="px-2 py-0.5 bg-indigo-100 text-indigo-900 rounded border border-indigo-200 font-semibold">
-                            R: {step.grsStatus.round}
-                          </span>
-                          <span className="px-2 py-0.5 bg-purple-100 text-purple-900 rounded border border-purple-200 font-semibold">
-                            S: {step.grsStatus.sticky}
-                          </span>
+                  <div key={step.stepNumber} className="relative pl-6 sm:pl-8">
+                    {/* Step Number Timeline Dot */}
+                    <div className="absolute -left-[17px] top-0 w-8 h-8 bg-white border-2 border-zinc-200 rounded-full flex items-center justify-center font-mono font-bold text-sm text-zinc-500 shadow-sm">
+                      {step.stepNumber}
+                    </div>
+
+                    <div className="space-y-4">
+                      {/* Step Header */}
+                      <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-2">
+                        <h4 className="text-lg font-semibold text-zinc-800">
+                          {step.title}
+                        </h4>
+                        
+                        {/* Minimalist GRS Indicators */}
+                        {step.grsStatus && (
+                          <div className="flex items-center gap-3 text-sm font-mono text-zinc-600 bg-zinc-50 px-3 py-1 rounded-lg border border-zinc-200">
+                            <span><span className="text-zinc-400">G:</span>{step.grsStatus.guard}</span>
+                            <span className="text-zinc-300">|</span>
+                            <span><span className="text-zinc-400">R:</span>{step.grsStatus.round}</span>
+                            <span className="text-zinc-300">|</span>
+                            <span><span className="text-zinc-400">S:</span>{step.grsStatus.sticky}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Description */}
+                      <p className="text-base text-zinc-600 leading-relaxed">
+                        {step.description}
+                      </p>
+
+                      {/* Detail block */}
+                      {step.detail && (
+                        <div className="text-sm font-mono text-zinc-600 whitespace-pre-wrap leading-loose">
+                          {step.detail}
+                        </div>
+                      )}
+
+                      {/* CONDITIONAL RENDERING FOR STEP 1 VISUALIZATION */}
+                      {step.stepNumber === 1 ? (
+                        <div className="bg-zinc-50/80 border-l-4 border-blue-400 p-4 sm:p-5 rounded-r-xl shadow-inner mt-4">
+                          {arithmeticData.operandA && 
+                            renderMiniIEEETable('Operand A', arithmeticData.operandA.signBit, arithmeticData.operandA.exponentBits, arithmeticData.operandA.mantissaBits)
+                          }
+                          {arithmeticData.operandB && 
+                            renderMiniIEEETable('Operand B', arithmeticData.operandB.signBit, arithmeticData.operandB.exponentBits, arithmeticData.operandB.mantissaBits)
+                          }
+                        </div>
+                      ) : step.binaryVisualization && (
+                        <div className="bg-zinc-50/80 border-l-4 border-blue-400 text-zinc-800 font-mono text-sm sm:text-base p-4 sm:p-5 rounded-r-xl overflow-x-auto tracking-widest whitespace-pre shadow-inner">
+                          {step.binaryVisualization}
                         </div>
                       )}
                     </div>
-
-                    <h4 className="font-mono text-base font-semibold text-[#695C53]">
-                      {step.title}
-                    </h4>
-
-                    <p className="font-mono text-xs sm:text-sm text-[#695C53]/50 leading-relaxed">
-                      {step.description}
-                    </p>
-
-                    {step.detail && (
-                      <div className="bg-zinc-50 border border-zinc-200 rounded-2xl p-4 font-mono text-xs text-[#695C53] whitespace-pre-wrap leading-relaxed">
-                        {step.detail}
-                      </div>
-                    )}
-
-                    {step.binaryVisualization && (
-                      <div className="bg-zinc-900 text-emerald-400 font-mono text-xs p-4 rounded-2xl overflow-x-auto tracking-wider whitespace-pre border border-zinc-800">
-                        {step.binaryVisualization}
-                      </div>
-                    )}
                   </div>
                 ))}
               </div>
@@ -296,7 +387,7 @@ export const ArithmeticView: React.FC = () => {
           </div>
         </>
       ) : (
-        <div className="bg-white border border-zinc-900 rounded-3xl p-12 text-center shadow-xs">
+        <div className="bg-white border border-zinc-900 rounded-3xl p-12 text-center shadow-xs mt-12">
           <p className="font-mono text-sm sm:text-base text-[#695C53]/50 italic">
             Input Operands A & B above and press <span className="font-semibold text-[#695C53] non-italic">Compute</span> (or select a sample computation) to visualize GRS arithmetic steps and final results.
           </p>

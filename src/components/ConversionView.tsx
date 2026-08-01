@@ -1,11 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import { decimalToIEEE754Double } from '../utils/ieee754';
 import { CopyButton } from './CopyButton';
-import { X } from 'lucide-react';
+import { X, Play } from 'lucide-react';
 
 const MAX_HISTORY = 6;
 
 export const ConversionView: React.FC = () => {
+  const [inputMode, setInputMode] = useState<'decimal' | 'hex'>('decimal');
   const [inputText, setInputText] = useState<string>('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [history, setHistory] = useState<string[]>([]);
@@ -17,26 +18,67 @@ export const ConversionView: React.FC = () => {
     });
   };
 
-  const validate = (_val: string): boolean => true;
+  const validateInput = (val: string, mode: 'decimal' | 'hex'): boolean => {
+    const clean = val.trim();
+    if (!clean) return true;
+    const hexClean = clean.replace(/^0x/i, '').replace(/\s+/g, '');
+    const isHex64 = /^[0-9a-fA-F]{16}$/.test(hexClean);
+    const isHexPrefixed = /^0x[0-9a-fA-F]+(\.[0-9a-fA-F]+)?$/i.test(clean);
+    const isSpecial = clean.toLowerCase().includes('nan') || clean.toLowerCase().includes('inf');
+    const isDecimal = !isNaN(parseFloat(clean)) && /^[+-]?[0-9]*\.?[0-9]+([eE][+-]?[0-9]+)?$/.test(clean);
 
-  const handleInput = (val: string) => {
+    if (mode === 'hex') {
+      return isHex64 || isHexPrefixed || isSpecial;
+    } else {
+      return isHex64 || isHexPrefixed || isSpecial || isDecimal;
+    }
+  };
+
+  const handleInput = (val: string, modeOverride?: 'decimal' | 'hex') => {
+    const currentMode = modeOverride || inputMode;
     setInputText(val);
     if (!val.trim()) {
       setErrorMessage(null);
       return;
     }
-    setErrorMessage(validate(val) ? null : 'Invalid input format.');
+    if (!validateInput(val, currentMode)) {
+      setErrorMessage(
+        currentMode === 'hex'
+          ? 'Invalid IEEE 754 64-bit hex string. Must be 16 hexadecimal characters (0-9, A-F).'
+          : 'Invalid input format. Enter a valid decimal value.'
+      );
+    } else {
+      setErrorMessage(null);
+    }
   };
 
-  const commitCurrent = (val: string) => {
+  const commitCurrent = (val: string, mode: 'decimal' | 'hex' = inputMode) => {
     const clean = val.trim();
-    if (clean && validate(clean)) commitToHistory(clean);
+    if (clean && validateInput(clean, mode)) commitToHistory(clean);
   };
 
+  const handleModeChange = (nextMode: 'decimal' | 'hex') => {
+    setInputMode(nextMode);
+    setErrorMessage(null);
+    if (inputText.trim()) {
+      handleInput(inputText, nextMode);
+    }
+  };
+
+  const handleCompute = () => {
+    if (!inputText.trim()) {
+      setErrorMessage('Please enter an input value.');
+      return;
+    }
+    handleInput(inputText, inputMode);
+    commitCurrent(inputText, inputMode);
+  };
+
+  // Compute IEEE 754 representation
   const ieeeData = useMemo(() => {
-    if (!inputText.trim()) return null;
-    return decimalToIEEE754Double(inputText);
-  }, [inputText]);
+    if (!inputText.trim() || errorMessage) return null;
+    return decimalToIEEE754Double(inputText, inputMode);
+  }, [inputText, inputMode, errorMessage]);
 
   const formatBitGroup = (bitsStr: string) => {
     return bitsStr.split('').join(' ');
@@ -45,7 +87,8 @@ export const ConversionView: React.FC = () => {
   return (
     <div className="max-w-5xl mx-auto px-4 py-6 space-y-8">
       {/* Input Control Bar */}
-      <div className="bg-white rounded-2xl sm:rounded-3xl border border-zinc-900 p-3 sm:p-4 flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shadow-xs">
+      <div className="bg-white rounded-2xl sm:rounded-3xl border border-zinc-900 p-3 sm:p-4 flex flex-wrap sm:flex-nowrap items-center gap-3 shadow-xs">
+        {/* Clear Button */}
         <button
           id="btn-clear-conversion"
           onClick={() => {
@@ -59,15 +102,42 @@ export const ConversionView: React.FC = () => {
           <X className="w-4 h-4" />
           Clear
         </button>
+
+        {/* Compute Button */}
+        <button
+          id="btn-convert"
+          onClick={handleCompute}
+          className="bg-[#8EBD6D] border border-zinc-900 hover:bg-[#7EB25B] text-zinc-900 font-mono text-sm font-semibold px-6 py-2.5 rounded-xl sm:rounded-2xl transition-all cursor-pointer text-center shadow-2xs hover:scale-105 active:scale-95 inline-flex items-center gap-2"
+        >
+          <Play className="w-4 h-4 fill-current" />
+          Compute
+        </button>
+
+        {/* Mode Dropdown Select */}
+        <select
+          id="select-conversion-mode"
+          value={inputMode}
+          onChange={(e) => handleModeChange(e.target.value as 'decimal' | 'hex')}
+          className="bg-white border border-zinc-900 rounded-xl px-4 py-2.5 font-mono text-sm text-zinc-900 outline-none cursor-pointer hover:bg-zinc-50 font-medium"
+        >
+          <option value="decimal">Decimal Input</option>
+          <option value="hex">Hexadecimal Input</option>
+        </select>
+
+        {/* Input Text Box */}
         <input
           id="input-conversion-val"
           type="text"
           value={inputText}
           onChange={(e) => handleInput(e.target.value)}
           onBlur={(e) => commitCurrent(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && commitCurrent(inputText)}
-          placeholder="Input decimal or hex (e.g. 5.8598744 or 0x40177082EFAC4240)..."
-          className="bg-white border border-zinc-900 rounded-xl sm:rounded-2xl px-6 py-3 font-mono text-sm sm:text-base flex-1 outline-none text-zinc-900 placeholder-zinc-400 focus:ring-2 focus:ring-zinc-800"
+          onKeyDown={(e) => e.key === 'Enter' && handleCompute()}
+          placeholder={
+            inputMode === 'hex'
+              ? 'Input 16-hex IEEE 754 string (e.g. 40177082EFAC4240 or 0x40177082EFAC4240)...'
+              : 'Input decimal value (e.g. 5.8598744 or -0.15625)...'
+          }
+          className="bg-white border border-zinc-900 rounded-xl sm:rounded-2xl px-6 py-3 font-mono text-sm sm:text-base flex-1 min-w-[200px] outline-none text-zinc-900 placeholder-zinc-400 focus:ring-2 focus:ring-zinc-800"
         />
       </div>
 
@@ -84,19 +154,15 @@ export const ConversionView: React.FC = () => {
       {/* Preset Example Badges */}
       <div className="flex flex-wrap items-center gap-2 px-2 text-xs font-body text-zinc-600">
         <span className="font-semibold text-zinc-900">Quick Examples:</span>
-        {[
-          '5.859874482048838',
-          '-0.15625',
-          '0x40177082EFAC4240',
-          '3.141592653589793',
-          'Infinity',
-          '0',
-        ].map((example) => (
+        {(inputMode === 'hex'
+          ? ['0x40177082EFAC4240', '0x3FF0000000000000', '0x400921FB54442D18', '0x7FF0000000000000', '0x0000000000000000']
+          : ['5.859874482048838', '-0.15625', '3.141592653589793', 'Infinity', 'NaN', '0']
+        ).map((example) => (
           <button
             key={example}
             onClick={() => {
-              handleInput(example);
-              commitCurrent(example);
+              handleInput(example, inputMode);
+              commitCurrent(example, inputMode);
             }}
             className="px-3 py-1 bg-white border border-zinc-800 rounded-lg hover:bg-zinc-100 transition-colors cursor-pointer text-zinc-800 font-mono text-xs font-normal"
           >
@@ -178,7 +244,7 @@ export const ConversionView: React.FC = () => {
             </div>
           ) : (
             <div className="text-center py-8 font-body text-sm text-zinc-500 italic">
-              Enter a decimal number, hexadecimal value, or text above to view its 64-bit binary representation.
+              Enter a {inputMode === 'hex' ? '16-character hexadecimal IEEE 754 string' : 'decimal number'} above to view its 64-bit binary representation.
             </div>
           )}
         </div>

@@ -3,28 +3,57 @@ import { IEEE754Double, RoundingResult, ArithmeticResult, ArithmeticStep } from 
 /**
  * Converts a number or input string (decimal or hex) to IEEE 754 double precision object.
  */
-export function decimalToIEEE754Double(input: number | string): IEEE754Double {
+function parseHexFloat(hexStr: string): number {
+  let clean = hexStr.trim().replace(/^0x/i, '');
+  if (!clean) return NaN;
+  let sign = 1;
+  if (clean.startsWith('-')) {
+    sign = -1;
+    clean = clean.substring(1);
+  } else if (clean.startsWith('+')) {
+    clean = clean.substring(1);
+  }
+  const parts = clean.split('.');
+  const intPart = parseInt(parts[0] || '0', 16);
+  if (isNaN(intPart)) return NaN;
+  let fracPart = 0;
+  if (parts[1]) {
+    for (let i = 0; i < parts[1].length; i++) {
+      const digitVal = parseInt(parts[1][i], 16);
+      if (isNaN(digitVal)) break;
+      fracPart += digitVal / Math.pow(16, i + 1);
+    }
+  }
+  return sign * (intPart + fracPart);
+}
+
+/**
+ * Converts a number or input string (decimal or hex) to IEEE 754 double precision object.
+ */
+export function decimalToIEEE754Double(input: number | string, mode?: 'decimal' | 'hex'): IEEE754Double {
   let numVal: number;
   let isHexInput = false;
-  let rawBitsStr = '';
 
   const cleanInput = typeof input === 'string' ? input.trim() : String(input);
 
-  // Check if input is hexadecimal e.g., 0x40177082EFAC4240 or 16-hex characters
-  if (typeof input === 'string' && (cleanInput.startsWith('0x') || cleanInput.startsWith('0X') || /^[0-9a-fA-F]{16}$/.test(cleanInput))) {
-    try {
-      const hexClean = cleanInput.replace(/^0x/i, '').padStart(16, '0');
-      const bigIntVal = BigInt(`0x${hexClean}`);
-      const buffer = new ArrayBuffer(8);
-      const bigUint64 = new BigUint64Array(buffer);
-      const float64 = new Float64Array(buffer);
-      
-      bigUint64[0] = bigIntVal;
-      numVal = float64[0];
-      isHexInput = true;
-      rawBitsStr = bigIntVal.toString(2).padStart(64, '0');
-    } catch {
-      numVal = parseFloat(cleanInput);
+  // Check if input is hexadecimal (starts with 0x/0X or is 16 hex chars or mode is hex)
+  if (mode === 'hex' || (typeof input === 'string' && (cleanInput.startsWith('0x') || cleanInput.startsWith('0X') || /^[0-9a-fA-F]{16}$/.test(cleanInput.replace(/^0x/i, ''))))) {
+    const hexClean = cleanInput.replace(/^0x/i, '').replace(/\s+/g, '');
+    if (/^[0-9a-fA-F]{16}$/.test(hexClean)) {
+      try {
+        const bigIntVal = BigInt(`0x${hexClean}`);
+        const buffer = new ArrayBuffer(8);
+        const bigUint64 = new BigUint64Array(buffer);
+        const float64 = new Float64Array(buffer);
+        
+        bigUint64[0] = bigIntVal;
+        numVal = float64[0];
+        isHexInput = true;
+      } catch {
+        numVal = parseHexFloat(cleanInput);
+      }
+    } else {
+      numVal = parseHexFloat(cleanInput);
     }
   } else {
     numVal = typeof input === 'number' ? input : parseFloat(cleanInput);
@@ -297,20 +326,23 @@ function roundDecimalString(decStr: string, targetDigits: number): RoundingResul
 export function performGRSArithmetic(
   opAStr: string,
   opBStr: string,
-  operation: '+' | '*'
+  operation: '+' | '*',
+  mode?: 'decimal' | 'hex'
 ): ArithmeticResult {
-  const ieeeA = decimalToIEEE754Double(opAStr || '5.859874482048838');
-  const ieeeB = decimalToIEEE754Double(opBStr || '1.0');
+  const defaultA = mode === 'hex' ? '0x40177082EFAC4240' : '5.859874482048838';
+  const defaultB = mode === 'hex' ? '0x3FF0000000000000' : '1.0';
+  const ieeeA = decimalToIEEE754Double(opAStr || defaultA, mode);
+  const ieeeB = decimalToIEEE754Double(opBStr || defaultB, mode);
 
   const steps: ArithmeticStep[] = [];
 
-  // Step 1: Unpack Operands
+  // Step 1: Unpack Operands (Using E and E' notation)
   steps.push({
     stepNumber: 1,
     title: 'Operand Unpacking & Field Extraction',
-    description: `Extract Sign bit (S), Biased Exponent (E), and 52-bit Mantissa (M) for Operands A and B. Add implicit leading bit 1.`,
-    detail: `Operand A: Sign=${ieeeA.signBit}, Biased Exp=${ieeeA.biasedExponent} (Unbiased E_A=${ieeeA.unbiasedExponent}), Mantissa=1.${ieeeA.mantissaBits.substring(0, 16)}...\n` +
-            `Operand B: Sign=${ieeeB.signBit}, Biased Exp=${ieeeB.biasedExponent} (Unbiased E_B=${ieeeB.unbiasedExponent}), Mantissa=1.${ieeeB.mantissaBits.substring(0, 16)}...`,
+    description: `Extract Sign bit (S), Biased Exponent, and 52-bit Mantissa for Operands A and B. Add implicit leading bit 1.`,
+    detail: `Operand A: Sign=${ieeeA.signBit}, Biased Exp=${ieeeA.biasedExponent} (Unbiased E=${ieeeA.unbiasedExponent}), Mantissa (M)=1.${ieeeA.mantissaBits.substring(0, 16)}...\n` +
+            `Operand B: Sign=${ieeeB.signBit}, Biased Exp=${ieeeB.biasedExponent} (Unbiased E'=${ieeeB.unbiasedExponent}), Mantissa (M')=1.${ieeeB.mantissaBits.substring(0, 16)}...`,
     binaryVisualization: `A: ${ieeeA.spacedBinary}\nB: ${ieeeB.spacedBinary}`,
   });
 
@@ -347,7 +379,7 @@ export function performGRSArithmetic(
   if (operation === '+') {
     finalResNum = ieeeA.decimalVal + ieeeB.decimalVal;
 
-    // Exact GRS bit computation for addition
+    // Exact GRS bit computation for addition using BigInt
     const sigA = (ieeeA.biasedExponent === 0 ? 0n : (1n << 52n)) | BigInt('0b0' + ieeeA.mantissaBits);
     const sigB = (ieeeB.biasedExponent === 0 ? 0n : (1n << 52n)) | BigInt('0b0' + ieeeB.mantissaBits);
 
@@ -390,10 +422,10 @@ export function performGRSArithmetic(
 
     steps.push({
       stepNumber: 2,
-      title: 'Exponent Alignment & Mantissa Shift',
-      description: `Align exponents to match larger exponent (${largerExp}). Exponent difference ΔE = ${expDiff}.`,
+      title: 'Exponent Alignment (ΔE) & Mantissa Shift',
+      description: `Calculate exponent difference: ΔE = |E - E'| = |${ieeeA.biasedExponent} - ${ieeeB.biasedExponent}| = ${expDiff}. Align to larger exponent (${largerExp}).`,
       detail: expDiff > 0
-        ? `Shifted Operand ${shiftedOperand}'s mantissa right by ${expDiff} bits. Outshifted bits generated Guard (G=${guard}), Round (R=${round}), and Sticky (S=${sticky}) bits.`
+        ? `Shifted Operand ${shiftedOperand}'s mantissa right by ΔE (${expDiff}) bits. Outshifted bits generated Guard (G=${guard}), Round (R=${round}), and Sticky (S=${sticky}) bits.`
         : `Exponents are equal (ΔE = 0). No right-shift required. GRS initialized to G=0, R=0, S=0.`,
       grsStatus: { guard, round, sticky },
     });
@@ -437,7 +469,7 @@ export function performGRSArithmetic(
     steps.push({
       stepNumber: 2,
       title: 'Exponent Addition & Bias Adjustment',
-      description: `Add unbiased exponents: E_A (${ieeeA.unbiasedExponent}) + E_B (${ieeeB.unbiasedExponent}) = ${unroundedExp}.`,
+      description: `Add unbiased exponents: E (${ieeeA.unbiasedExponent}) + E' (${ieeeB.unbiasedExponent}) = ${unroundedExp}.`,
       detail: `Re-apply bias: ${unroundedExp} + 1023 = ${resultBiasedExp} (Biased Exponent: ${resultBiasedExp >= 0 ? resultBiasedExp.toString(2).padStart(11, '0') : 'Underflow'}).`,
     });
 
@@ -464,7 +496,7 @@ export function performGRSArithmetic(
     steps.push({
       stepNumber: 3,
       title: 'Significand Multiplication & GRS Bit Extraction',
-      description: `Multiply 53-bit significands (1.M_A × 1.M_B) producing a 106-bit product.`,
+      description: `Multiply 53-bit significands (1.M × 1.M') producing a 106-bit product.`,
       detail: `Extracted Guard (G=${guard}), Round (R=${round}), and Sticky (S=${sticky}) bits from lower product bits.`,
       grsStatus: { guard, round, sticky },
       binaryVisualization: `Product MSB: ${product.toString(2).substring(0, 32)}...\nGRS Status:  G:${guard} R:${round} S:${sticky}`,
