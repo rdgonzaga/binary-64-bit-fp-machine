@@ -156,131 +156,141 @@ export const ArithmeticView: React.FC = () => {
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-6 space-y-8">
-      {/* Control Bar */}
-      <div className="bg-white rounded-2xl sm:rounded-3xl border border-zinc-900 p-3 sm:p-4 flex flex-wrap sm:flex-nowrap items-center gap-3 shadow-xs">
-        {/* Clear Button */}
-        <button
-          id="btn-clear-arithmetic"
-          onClick={() => {
-            setOpA('');
-            setOpB('');
-            setHasComputed(false);
-            setErrorMessage(null);
-          }}
-          disabled={!opA && !opB}
-          title="Clear inputs"
-          className="bg-white border border-zinc-900 hover:bg-zinc-50 disabled:opacity-40 disabled:cursor-not-allowed text-[#695C53] font-mono text-sm font-semibold px-4 py-2.5 rounded-xl transition-all cursor-pointer shadow-2xs hover:scale-105 active:scale-95 inline-flex items-center gap-1.5"
-        >
-          <X className="w-4 h-4" />
-          Clear
-        </button>
-
-        {/* Compute Button */}
-        <button
-          id="btn-compute"
-          onClick={() => handleCompute()}
-          className="bg-[#A6D5EC] border border-zinc-900 hover:bg-[#96C8E0] text-[#695C53] font-mono text-sm font-semibold px-6 py-2.5 rounded-xl sm:rounded-2xl transition-all cursor-pointer shadow-2xs hover:scale-105 active:scale-95"
-        >
-          Compute
-        </button>
-
-        {/* Mode Dropdown Select */}
-        <select
-          id="select-arithmetic-mode"
-          value={inputMode}
-          onChange={(e) => handleModeChange(e.target.value as 'decimal' | 'hex')}
-          className="bg-white border border-zinc-900 rounded-xl px-4 py-2.5 font-mono text-sm text-[#695C53] outline-none cursor-pointer hover:bg-zinc-50 font-medium"
-        >
-          <option value="decimal">Decimal Input</option>
-          <option value="hex">Hexadecimal Input</option>
-        </select>
-
-        {/* Operand A Input with optional 0x Box */}
-        <div className="flex flex-1 min-w-[150px]">
-          {inputMode === 'hex' && (
-            <div
-              className="flex items-center justify-center px-3.5 bg-zinc-100 border border-zinc-900 border-r-0 rounded-l-xl sm:rounded-l-2xl font-mono text-sm text-[#695C53] select-none"
-              aria-hidden="true"
+      {/* Control Bar Panel (2-Row Layout) */}
+      <div className="bg-white rounded-2xl sm:rounded-3xl border border-zinc-900 p-4 sm:p-5 space-y-4 shadow-xs">
+        {/* Row 1: Top Actions (Mode Dropdown, Clear, Compute) */}
+        <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-zinc-200">
+          <div className="flex items-center gap-3">
+            {/* Mode Dropdown Select */}
+            <select
+              id="select-arithmetic-mode"
+              value={inputMode}
+              onChange={(e) => handleModeChange(e.target.value as 'decimal' | 'hex')}
+              className="bg-white border border-zinc-900 rounded-xl px-4 py-2 font-mono text-xs sm:text-sm text-[#695C53] outline-none cursor-pointer hover:bg-zinc-50 font-medium"
             >
-              0x
-            </div>
-          )}
-          <input
-            id="input-operand-a"
-            type="text"
-            value={opA}
-            onChange={(e) => {
-              setOpA(e.target.value);
-              setHasComputed(false);
-            }}
-            placeholder={inputMode === 'hex' ? 'Operand A (1-16 hex chars)...' : 'Operand A (decimal)...'}
-            className={`bg-white border border-zinc-900 px-4 py-2.5 font-mono text-sm sm:text-base flex-1 min-w-0 outline-none text-[#695C53] placeholder-[#695C53]/50 focus:ring-2 focus:ring-zinc-800 ${
-              inputMode === 'hex'
-                ? 'rounded-r-xl sm:rounded-r-2xl'
-                : 'rounded-xl sm:rounded-2xl'
-            }`}
-          />
+              <option value="decimal">Decimal Input</option>
+              <option value="hex">Hexadecimal Input</option>
+            </select>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {/* Clear Button */}
+            <button
+              id="btn-clear-arithmetic"
+              onClick={() => {
+                setOpA('');
+                setOpB('');
+                setHasComputed(false);
+                setErrorMessage(null);
+              }}
+              disabled={!opA && !opB}
+              title="Clear inputs"
+              className="bg-white border border-zinc-900 hover:bg-zinc-50 disabled:opacity-40 disabled:cursor-not-allowed text-[#695C53] font-mono text-xs sm:text-sm font-semibold px-3.5 py-2 rounded-xl transition-all cursor-pointer shadow-2xs hover:scale-105 active:scale-95 inline-flex items-center gap-1.5"
+            >
+              <X className="w-4 h-4" />
+              Clear
+            </button>
+
+            {/* Compute Button */}
+            <button
+              id="btn-compute"
+              onClick={() => handleCompute()}
+              className="bg-[#A6D5EC] border border-zinc-900 hover:bg-[#96C8E0] text-[#695C53] font-mono text-xs sm:text-sm font-semibold px-5 py-2 rounded-xl sm:rounded-2xl transition-all cursor-pointer shadow-2xs hover:scale-105 active:scale-95"
+            >
+              Compute
+            </button>
+          </div>
         </div>
 
-        {/* Operator Toggle Buttons */}
-        <div className="flex items-center gap-1.5">
-          <button
-            id="btn-op-add"
-            onClick={() => {
-              setOperation('+');
-              setHasComputed(false);
-            }}
-            className={`w-11 h-11 rounded-xl sm:rounded-2xl border border-zinc-900 font-mono text-xl font-bold flex items-center justify-center transition-all cursor-pointer ${
-              operation === '+'
-                ? 'bg-[#A6D5EC] text-[#695C53] shadow-xs scale-105'
-                : 'bg-white hover:bg-zinc-100 text-[#695C53]'
-            }`}
-            title="Addition"
-          >
-            +
-          </button>
-          <button
-            id="btn-op-mult"
-            onClick={() => {
-              setOperation('*');
-              setHasComputed(false);
-            }}
-            className={`w-11 h-11 rounded-xl sm:rounded-2xl border border-zinc-900 font-mono text-xl font-bold flex items-center justify-center transition-all cursor-pointer ${
-              operation === '*'
-                ? 'bg-[#A6D5EC] text-[#695C53] shadow-xs scale-105'
-                : 'bg-white hover:bg-zinc-100 text-[#695C53]'
-            }`}
-            title="Multiplication"
-          >
-            *
-          </button>
-        </div>
+        {/* Row 2: Operands & Operator Toggle */}
+        <div className="flex flex-col md:flex-row items-center gap-3">
+          {/* Operand A Input Field */}
+          <div className="flex flex-1 w-full min-w-0">
+            {inputMode === 'hex' && (
+              <div
+                className="flex items-center justify-center px-3.5 bg-zinc-100 border border-zinc-900 border-r-0 rounded-l-xl sm:rounded-l-2xl font-mono text-sm text-[#695C53] select-none shrink-0"
+                aria-hidden="true"
+              >
+                0x
+              </div>
+            )}
+            <input
+              id="input-operand-a"
+              type="text"
+              value={opA}
+              onChange={(e) => {
+                setOpA(e.target.value);
+                setHasComputed(false);
+              }}
+              placeholder={inputMode === 'hex' ? 'e.g. 401770... or 5' : 'e.g. 5.85987'}
+              className={`bg-white border border-zinc-900 px-4 py-2.5 font-mono text-sm sm:text-base flex-1 min-w-0 outline-none text-[#695C53] placeholder-[#695C53]/50 focus:ring-2 focus:ring-zinc-800 ${
+                inputMode === 'hex'
+                  ? 'rounded-r-xl sm:rounded-r-2xl text-right'
+                  : 'rounded-xl sm:rounded-2xl text-left'
+              }`}
+            />
+          </div>
 
-        {/* Operand B Input with optional 0x Box */}
-        <div className="flex flex-1 min-w-[150px]">
-          {inputMode === 'hex' && (
-            <div
-              className="flex items-center justify-center px-3.5 bg-zinc-100 border border-zinc-900 border-r-0 rounded-l-xl sm:rounded-l-2xl font-mono text-sm text-[#695C53] select-none"
-              aria-hidden="true"
+          {/* Operator Toggle Buttons */}
+          <div className="flex items-center gap-1.5 shrink-0 my-1 md:my-0">
+            <button
+              id="btn-op-add"
+              onClick={() => {
+                setOperation('+');
+                setHasComputed(false);
+              }}
+              className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl border border-zinc-900 font-mono text-lg sm:text-xl font-bold flex items-center justify-center transition-all cursor-pointer ${
+                operation === '+'
+                  ? 'bg-[#A6D5EC] text-[#695C53] shadow-xs scale-105'
+                  : 'bg-white hover:bg-zinc-100 text-[#695C53]'
+              }`}
+              title="Addition"
             >
-              0x
-            </div>
-          )}
-          <input
-            id="input-operand-b"
-            type="text"
-            value={opB}
-            onChange={(e) => {
-              setOpB(e.target.value);
-              setHasComputed(false);
-            }}
-            placeholder={inputMode === 'hex' ? 'Operand B (1-16 hex chars)...' : 'Operand B (decimal)...'}
-            className={`bg-white border border-zinc-900 px-4 py-2.5 font-mono text-sm sm:text-base flex-1 min-w-0 outline-none text-[#695C53] placeholder-[#695C53]/50 focus:ring-2 focus:ring-zinc-800 ${
-              inputMode === 'hex'
-                ? 'rounded-r-xl sm:rounded-r-2xl'
-                : 'rounded-xl sm:rounded-2xl'
-            }`}
-          />
+              +
+            </button>
+            <button
+              id="btn-op-mult"
+              onClick={() => {
+                setOperation('*');
+                setHasComputed(false);
+              }}
+              className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl border border-zinc-900 font-mono text-lg sm:text-xl font-bold flex items-center justify-center transition-all cursor-pointer ${
+                operation === '*'
+                  ? 'bg-[#A6D5EC] text-[#695C53] shadow-xs scale-105'
+                  : 'bg-white hover:bg-zinc-100 text-[#695C53]'
+              }`}
+              title="Multiplication"
+            >
+              *
+            </button>
+          </div>
+
+          {/* Operand B Input Field */}
+          <div className="flex flex-1 w-full min-w-0">
+            {inputMode === 'hex' && (
+              <div
+                className="flex items-center justify-center px-3.5 bg-zinc-100 border border-zinc-900 border-r-0 rounded-l-xl sm:rounded-l-2xl font-mono text-sm text-[#695C53] select-none shrink-0"
+                aria-hidden="true"
+              >
+                0x
+              </div>
+            )}
+            <input
+              id="input-operand-b"
+              type="text"
+              value={opB}
+              onChange={(e) => {
+                setOpB(e.target.value);
+                setHasComputed(false);
+              }}
+              placeholder={inputMode === 'hex' ? 'e.g. 3FF000... or 1' : 'e.g. 1.0'}
+              className={`bg-white border border-zinc-900 px-4 py-2.5 font-mono text-sm sm:text-base flex-1 min-w-0 outline-none text-[#695C53] placeholder-[#695C53]/50 focus:ring-2 focus:ring-zinc-800 ${
+                inputMode === 'hex'
+                  ? 'rounded-r-xl sm:rounded-r-2xl text-right'
+                  : 'rounded-xl sm:rounded-2xl text-left'
+              }`}
+            />
+          </div>
         </div>
       </div>
 
