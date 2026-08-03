@@ -206,53 +206,48 @@ export const ConversionView: React.FC = () => {
 
         <div className="bg-white border border-zinc-900 rounded-b-3xl rounded-tr-3xl p-6 sm:p-10 shadow-xs">
           {ieeeData ? (
-            <div className="flex flex-col gap-6 max-w-4xl mx-auto">
-              {/* Top Row: Sign & Exponent */}
-              <div className="flex flex-col sm:flex-row items-stretch gap-4 sm:gap-6">
-                {/* Sign Box */}
-                <div className="flex flex-col items-center">
-                  <div className="bg-white border border-zinc-900 rounded-2xl px-6 py-4 font-mono text-base font-normal text-zinc-700 text-center min-w-[80px] shadow-2xs">
-                    {ieeeData.signBit}
-                  </div>
-                  <span className="text-xs font-mono font-bold tracking-wider text-zinc-900 mt-2">
-                    sign
-                  </span>
-                </div>
+            <div className="max-w-5xl mx-auto">
+                <div className="bg-white border border-zinc-900 rounded-2xl shadow-sm overflow-hidden flex flex-col w-full">
 
-                {/* Exponent Box */}
-                <div className="flex flex-col items-center flex-1 min-w-0">
-                  <div className="bg-white border border-zinc-900 rounded-2xl px-4 py-4 sm:px-6 font-mono text-sm sm:text-base font-normal text-zinc-700 text-center w-full shadow-2xs">
-                    <div className="flex flex-wrap justify-center gap-x-2 sm:gap-x-3 gap-y-1 tracking-widest">
-                      {formatBitGroup(ieeeData.exponentBits)}
+                {/* Header */}
+                <div className="flex bg-zinc-50 border-b border-zinc-200 text-[10px] sm:text-xs font-semibold text-zinc-500 uppercase tracking-wider divide-x divide-zinc-200">
+                    <div className="w-14 sm:w-20 py-2.5 text-center shrink-0">
+                    Sign
                     </div>
-                  </div>
-                  <span className="text-xs font-mono font-bold tracking-wider text-zinc-900 mt-2">
-                    exponent
-                  </span>
-                </div>
-              </div>
 
-              {/* Bottom Row: Mantissa */}
-              <div className="flex flex-col items-center w-full">
-                <div className="bg-white border border-zinc-900 rounded-2xl px-4 py-4 sm:px-6 font-mono text-sm sm:text-base font-normal text-zinc-700 text-center w-full shadow-2xs">
-                  <div className="flex flex-wrap justify-center gap-x-2.5 sm:gap-x-3.5 gap-y-1.5">
-                    {ieeeData.mantissaBits.match(/.{1,4}/g)?.map((nibble, idx) => (
-                      <span key={idx} className="whitespace-nowrap tracking-wider">
-                        {nibble.split('').join(' ')}
-                      </span>
-                    ))}
-                  </div>
+                    <div className="w-24 sm:w-36 py-2.5 text-center shrink-0">
+                    Exponent
+                    </div>
+
+                    <div className="flex-1 py-2.5 px-4 text-center">
+                    Mantissa
+                    </div>
                 </div>
-                <span className="text-xs font-mono font-bold tracking-wider text-zinc-900 mt-2">
-                  mantissa
-                </span>
-              </div>
+
+                <div className="flex font-mono text-zinc-800 divide-x divide-zinc-200 bg-white">
+
+                    <div className="w-14 sm:w-20 py-4 flex items-center justify-center shrink-0 bg-zinc-50/30 text-xs sm:text-sm">
+                    {ieeeData.signBit}
+                    </div>
+
+                    <div className="w-24 sm:w-36 py-4 flex items-center justify-center shrink-0 bg-zinc-50/30 tracking-widest text-[10px] sm:text-xs">
+                    {ieeeData.exponentBits}
+                    </div>
+
+                    <div className="flex-1 py-4 px-4 flex items-center justify-center tracking-widest break-all text-xs sm:text-sm">
+                    {ieeeData.mantissaBits.match(/.{1,4}/g)?.join(' ') || ieeeData.mantissaBits}
+                    </div>
+
+                </div>
+                </div>
             </div>
-          ) : (
+            ) : (
             <div className="text-center py-8 font-body text-sm text-zinc-500 italic">
-              Enter a {inputMode === 'hex' ? '1-16 digit hexadecimal value' : 'decimal number'} above to view its 64-bit binary representation.
+                Enter a {inputMode === 'hex'
+                ? '1-16 digit hexadecimal value'
+                : 'decimal number'} above to view its 64-bit binary representation.
             </div>
-          )}
+            )}
         </div>
       </div>
 
