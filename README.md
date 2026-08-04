@@ -4,8 +4,6 @@
 
 An interactive, high-precision web application for **Machine 3: IEEE 754 Binary 64-Bit Double-Precision Floating-Point Architecture Visualization**. Access the live deployment at **[https://binary-64-bit-fp-machine.vercel.app/](https://binary-64-bit-fp-machine.vercel.app/)**.
 
-> **Before submission:** also set this same URL as the repository's **About → Website** link on GitHub (this link only lives inside this README) — the "About" field is what the grading rubric checks first.
-
 ---
 
 ## Features
@@ -41,38 +39,63 @@ An interactive, high-precision web application for **Machine 3: IEEE 754 Binary 
 
 ## Testing
 
-Each module was exercised against normal, special-case (`NaN`, `±Infinity`, `±0`, subnormal), overflow/underflow, and mixed decimal/hex inputs. Screenshots for every case below are stored in this repo (see checklist) and demonstrated live in the [video walkthrough](#video-walkthrough).
+Each module was exercised against normal, special-case (`NaN`, `±Infinity`, `±0`, subnormal), overflow/underflow, and mixed decimal/hex inputs. Screenshots are stored in [`public/screenshots/`](public/screenshots/) and demonstrated live in the [video walkthrough](#video-walkthrough).
 
-<!-- TODO: add a `screenshots/` folder to the repo and link each checked item below to its image, e.g. `[✓](screenshots/conversion-nan.png)` -->
+<!-- TODO: capture and add screenshots for the remaining unchecked items below -->
 
-- **Conversion**
-  - [ ] Normal decimal input (e.g. `5.8598744`)
-  - [ ] Normal hexadecimal input (e.g. `0x40177082EFAC4240`)
-  - [ ] `NaN`
-  - [ ] `+Infinity` / `-Infinity`
-  - [ ] `+0` / `-0`
-  - [ ] Subnormal (denormalized) value (e.g. `5e-320`)
-- **Rounding Demonstrator**
-  - [ ] Binary input, all 4 methods, non-tie case
-  - [ ] Binary input, all 4 methods, exact-tie case (ties-to-even)
-  - [ ] Decimal input, all 4 methods, non-tie case
-  - [ ] Decimal input, all 4 methods, exact-tie case (ties-to-even)
-  - [ ] Negative input
-- **GRS Arithmetic**
-  - [ ] Addition, decimal operands, normal range
-  - [ ] Addition, hexadecimal operands, normal range
-  - [ ] Addition producing an exact tie (G=1, R=0, S=0)
-  - [ ] Addition with catastrophic cancellation (near-equal operands, opposite signs)
-  - [ ] Multiplication, decimal operands, normal range
-  - [ ] Multiplication, hexadecimal operands, normal range
-  - [ ] Overflow to `Infinity` (e.g. `Number.MAX_VALUE * 2`)
-  - [ ] Underflow to subnormal/zero
-  - [ ] One operand is `NaN` / `Infinity` / `0`
+### Conversion
 
-## Video Walkthrough
+- **Normal decimal input**
 
-<!-- TODO: record a 5-8 minute YouTube video demonstrating every test case above, then replace this line with the link -->
-**YouTube link:** _TODO — add before submission_
+  <img src="public/screenshots/conversion-decimal.png" width="700" alt="Conversion: normal decimal input">
+
+- **Normal hexadecimal input**
+
+  <img src="public/screenshots/conversion-hex.png" width="700" alt="Conversion: normal hexadecimal input">
+
+- **NaN**
+
+  <img src="public/screenshots/conversion-nan.png" width="700" alt="Conversion: NaN">
+
+- **+Infinity**
+
+  <img src="public/screenshots/conversion-inf-pos.png" width="700" alt="Conversion: +Infinity">
+
+- **-Infinity**
+
+  <img src="public/screenshots/conversion-inf-neg.png" width="700" alt="Conversion: -Infinity">
+
+- **+0**
+
+  <img src="public/screenshots/conversion-zero-pos.png" width="700" alt="Conversion: +0">
+
+- **-0**
+
+  <img src="public/screenshots/conversion-zero-neg.png" width="700" alt="Conversion: -0">
+
+- **Subnormal (denormalized)**
+
+  <img src="public/screenshots/conversion-subnormal.png" width="700" alt="Conversion: subnormal denormalized value">
+
+### Rounding Demonstrator
+
+- [ ] Binary input, all 4 methods, non-tie case
+- [ ] Binary input, all 4 methods, exact-tie case (ties-to-even)
+- [ ] Decimal input, all 4 methods, non-tie case
+- [ ] Decimal input, all 4 methods, exact-tie case (ties-to-even)
+- [ ] Negative input
+
+### GRS Arithmetic
+
+- [ ] Addition, decimal operands, normal range
+- [ ] Addition, hexadecimal operands, normal range
+- [ ] Addition producing an exact tie (G=1, R=0, S=0)
+- [ ] Addition with catastrophic cancellation (near-equal operands, opposite signs)
+- [ ] Multiplication, decimal operands, normal range
+- [ ] Multiplication, hexadecimal operands, normal range
+- [ ] Overflow to `Infinity` (e.g. `Number.MAX_VALUE * 2`)
+- [ ] Underflow to subnormal/zero
+- [ ] One operand is `NaN` / `Infinity` / `0`
 
 ---
 
