@@ -25,12 +25,10 @@ export const ArithmeticView: React.FC = () => {
       const hexClean = clean.replace(/^0x/i, '').replace(/\s+/g, '');
       return /^[0-9a-fA-F]{1,16}$/.test(hexClean);
     } else {
-      const hexClean = clean.replace(/^0x/i, '').replace(/\s+/g, '');
-      const isHex = /^[0-9a-fA-F]{1,16}$/.test(hexClean);
       const isSpecial = clean.toLowerCase().includes('nan') || clean.toLowerCase().includes('inf');
       const isDecimal = !isNaN(parseFloat(clean)) && /^[+-]?[0-9]*\.?[0-9]+([eE][+-]?[0-9]+)?$/.test(clean);
 
-      return isHex || isSpecial || isDecimal;
+      return isSpecial || isDecimal;
     }
   };
 
@@ -221,6 +219,7 @@ export const ArithmeticView: React.FC = () => {
               onChange={(e) => {
                 setOpA(e.target.value);
                 setHasComputed(false);
+                setErrorMessage(null);
               }}
               placeholder={inputMode === 'hex' ? 'e.g. 401770... or 5' : 'e.g. 5.85987'}
               className={`bg-white border border-zinc-900 px-4 py-2.5 font-mono text-sm sm:text-base flex-1 min-w-0 outline-none text-[#695C53] placeholder-[#695C53]/50 focus:ring-2 focus:ring-zinc-800 ${
@@ -282,6 +281,7 @@ export const ArithmeticView: React.FC = () => {
               onChange={(e) => {
                 setOpB(e.target.value);
                 setHasComputed(false);
+                setErrorMessage(null);
               }}
               placeholder={inputMode === 'hex' ? 'e.g. 3FF000... or 1' : 'e.g. 1.0'}
               className={`bg-white border border-zinc-900 px-4 py-2.5 font-mono text-sm sm:text-base flex-1 min-w-0 outline-none text-[#695C53] placeholder-[#695C53]/50 focus:ring-2 focus:ring-zinc-800 ${
