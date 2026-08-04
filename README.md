@@ -181,7 +181,7 @@ Each module was exercised against normal, special-case (`NaN`, `±Infinity`, `±
 
 ---
 
-## Group Members
+## Group 3 Members
 
 - Rainer Gonzaga
 - Aaron James Gonzales
