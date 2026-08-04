@@ -79,16 +79,37 @@ Each module was exercised against normal, special-case (`NaN`, `±Infinity`, `±
 
 ### Rounding Demonstrator
 
-- [ ] Binary input, all 4 methods, non-tie case
-- [ ] Binary input, all 4 methods, exact-tie case (ties-to-even)
-- [ ] Decimal input, all 4 methods, non-tie case
-- [ ] Decimal input, all 4 methods, exact-tie case (ties-to-even)
-- [ ] Negative input
+- **Binary input, non-tie case**
+
+  <img src="public/screenshots/rounding-binary-non.png" width="700" alt="Rounding: binary input, non-tie case">
+
+- **Binary input, exact-tie case (ties-to-even)**
+
+  <img src="public/screenshots/rounding-binary-exact1.png" width="700" alt="Rounding: binary input, exact tie, LSB odd rounds up">
+
+  <img src="public/screenshots/rounding-binary-exact2.png" width="700" alt="Rounding: binary input, exact tie, LSB even stays">
+
+- **Decimal input, non-tie case**
+
+  <img src="public/screenshots/rounding-decimal-non.png" width="700" alt="Rounding: decimal input, non-tie case">
+
+- **Decimal input, exact-tie case (ties-to-even)**
+
+  <img src="public/screenshots/rounding-decimal-exact1.png" width="700" alt="Rounding: decimal input, exact tie, last kept digit even stays">
+
+  <img src="public/screenshots/rounding-decimal-exact2.png" width="700" alt="Rounding: decimal input, exact tie, last kept digit odd rounds up">
+
+- **Negative input**
+
+  <img src="public/screenshots/rounding-decimal-neg.png" width="700" alt="Rounding: negative decimal input">
 
 ### GRS Arithmetic
 
-- [ ] Addition, decimal operands, normal range
-- [ ] Addition, hexadecimal operands, normal range
+- **Addition, decimal operands, normal range**
+
+  <img src="public/screenshots/arithmetic-add-decimal-normal.png" width="700" alt="Arithmetic: addition, decimal operands, normal range">
+
+- [ ] Addition, hexadecimal operands, normal range <!-- TODO: recapture - existing screenshot used subnormal operands (exponent field 0) by accident, not normal range -->
 - [ ] Addition producing an exact tie (G=1, R=0, S=0)
 - [ ] Addition with catastrophic cancellation (near-equal operands, opposite signs)
 - [ ] Multiplication, decimal operands, normal range
