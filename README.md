@@ -1,8 +1,8 @@
 # Binary 64-bit Floating-Point Machine
 
-**[Live Deployment](https://binary-64-bit-fp-machine.vercel.app/)** · **[Video Walkthrough](https://youtu.be/VIDEO_ID_HERE)**
+An interactive, high-precision web application for **Machine 3: IEEE 754 Binary 64-Bit Double-Precision Floating-Point Architecture Visualization**.
 
-An interactive, high-precision web application for **Machine 3: IEEE 754 Binary 64-Bit Double-Precision Floating-Point Architecture Visualization**. Access the live deployment at **[https://binary-64-bit-fp-machine.vercel.app/](https://binary-64-bit-fp-machine.vercel.app/)**.
+Click here for the **[Live Deployment](https://binary-64-bit-fp-machine.vercel.app/)**, and click here for the **[Youtube Video Walkthrough](https://www.youtube.com/watch?v=lVyBRyUnwGo)**
 
 ---
 
@@ -181,3 +181,10 @@ Each module was exercised against normal, special-case (`NaN`, `±Infinity`, `±
 
 ---
 
+## Group Members
+
+- Rainer Gonzaga
+- Aaron James Gonzales
+- Kennese Ross Manalang
+- Duncan Joseph Marcaida
+- Richmond Jose Ramos
