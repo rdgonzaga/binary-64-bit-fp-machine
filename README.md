@@ -1,6 +1,6 @@
 # Binary 64-bit Floating-Point Machine
 
-**[Live Deployment](https://binary-64-bit-fp-machine.vercel.app/)** · **[Video Walkthrough](#video-walkthrough)**
+**[Live Deployment](https://binary-64-bit-fp-machine.vercel.app/)** · **[Video Walkthrough](https://youtu.be/VIDEO_ID_HERE)**
 
 An interactive, high-precision web application for **Machine 3: IEEE 754 Binary 64-Bit Double-Precision Floating-Point Architecture Visualization**. Access the live deployment at **[https://binary-64-bit-fp-machine.vercel.app/](https://binary-64-bit-fp-machine.vercel.app/)**.
 
@@ -39,9 +39,7 @@ An interactive, high-precision web application for **Machine 3: IEEE 754 Binary 
 
 ## Testing
 
-Each module was exercised against normal, special-case (`NaN`, `±Infinity`, `±0`, subnormal), overflow/underflow, and mixed decimal/hex inputs. Screenshots are stored in [`public/screenshots/`](public/screenshots/) and demonstrated live in the [video walkthrough](#video-walkthrough).
-
-<!-- TODO: capture and add screenshots for the remaining unchecked items below -->
+Each module was exercised against normal, special-case (`NaN`, `±Infinity`, `±0`, subnormal), overflow/underflow, and mixed decimal/hex inputs. Screenshots are stored in [`public/screenshots/`](public/screenshots/) and demonstrated live in the video walkthrough linked at the top of this README.
 
 ### Conversion
 
@@ -109,14 +107,37 @@ Each module was exercised against normal, special-case (`NaN`, `±Infinity`, `±
 
   <img src="public/screenshots/arithmetic-add-decimal-normal.png" width="700" alt="Arithmetic: addition, decimal operands, normal range">
 
-- [ ] Addition, hexadecimal operands, normal range <!-- TODO: recapture - existing screenshot used subnormal operands (exponent field 0) by accident, not normal range -->
-- [ ] Addition producing an exact tie (G=1, R=0, S=0)
-- [ ] Addition with catastrophic cancellation (near-equal operands, opposite signs)
-- [ ] Multiplication, decimal operands, normal range
-- [ ] Multiplication, hexadecimal operands, normal range
-- [ ] Overflow to `Infinity` (e.g. `Number.MAX_VALUE * 2`)
-- [ ] Underflow to subnormal/zero
-- [ ] One operand is `NaN` / `Infinity` / `0`
+- **Addition, hexadecimal operands, normal range**
+
+  <img src="public/screenshots/arithmetic-add-hex-normal.png" width="700" alt="Arithmetic: addition, hexadecimal operands, normal range">
+
+- **Addition producing an exact tie (G=1, R=0, S=0)**
+
+  <img src="public/screenshots/arithmetic-add-exact.png" width="700" alt="Arithmetic: addition producing an exact tie">
+
+- **Addition with catastrophic cancellation (near-equal operands, opposite signs)**
+
+  <img src="public/screenshots/arithmetic-catastrophic.png" width="700" alt="Arithmetic: addition with catastrophic cancellation">
+
+- **Multiplication, decimal operands, normal range**
+
+  <img src="public/screenshots/arithmetic-multi-decimal-normal.png" width="700" alt="Arithmetic: multiplication, decimal operands, normal range">
+
+- **Multiplication, hexadecimal operands, normal range**
+
+  <img src="public/screenshots/arithmetic-multi-hex-normal.png" width="700" alt="Arithmetic: multiplication, hexadecimal operands, normal range">
+
+- **Overflow to `Infinity`**
+
+  <img src="public/screenshots/arithmetic-overflow-inf.png" width="700" alt="Arithmetic: overflow to Infinity">
+
+- **Underflow to subnormal/zero**
+
+  <img src="public/screenshots/arithmetic-underflow-inf.png" width="700" alt="Arithmetic: underflow to subnormal">
+
+- **One operand is `NaN` / `Infinity` / `0`**
+
+  <img src="public/screenshots/arithmetic-nan.png" width="700" alt="Arithmetic: one operand is NaN">
 
 ---
 
@@ -160,6 +181,3 @@ Each module was exercised against normal, special-case (`NaN`, `±Infinity`, `±
 
 ---
 
-## License
-
-Created for CSARCH2 / Architecture 3 coursework.
