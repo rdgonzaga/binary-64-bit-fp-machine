@@ -1,8 +1,6 @@
 import { IEEE754Double, RoundingResult, ArithmeticResult, ArithmeticStep } from '../types';
 
-/**
- * Converts a number or input string (decimal or hex) to IEEE 754 double precision object.
- */
+/** Parses a hex-float string like "1A.8" into a JS number. Fallback for non-16-digit hex input. */
 function parseHexFloat(hexStr: string): number {
   let clean = hexStr.trim().replace(/^0x/i, '');
   if (!clean) return NaN;
@@ -27,17 +25,59 @@ function parseHexFloat(hexStr: string): number {
   return sign * (intPart + fracPart);
 }
 
+/** Builds a full IEEE754Double descriptor directly from a raw 64-bit pattern. */
+function buildIEEE754FromBits(bitsBigInt: bigint): IEEE754Double {
+  const buffer = new ArrayBuffer(8);
+  const bigUint64 = new BigUint64Array(buffer);
+  const float64 = new Float64Array(buffer);
+  bigUint64[0] = BigInt.asUintN(64, bitsBigInt);
+  const numVal = float64[0];
+
+  const binary64 = bigUint64[0].toString(2).padStart(64, '0');
+  const signBit = binary64[0];
+  const exponentBits = binary64.substring(1, 12);
+  const mantissaBits = binary64.substring(12);
+
+  const biasedExp = parseInt(exponentBits, 2);
+  let unbiasedExp = biasedExp - 1023;
+  let specialCase: string | null = null;
+
+  if (biasedExp === 2047) {
+    specialCase = mantissaBits === '0'.repeat(52) ? (signBit === '0' ? '+Infinity' : '-Infinity') : 'NaN';
+  } else if (biasedExp === 0) {
+    if (mantissaBits === '0'.repeat(52)) {
+      specialCase = signBit === '0' ? '+0' : '-0';
+      unbiasedExp = 0;
+    } else {
+      specialCase = 'Subnormal (Denormal)';
+      unbiasedExp = -1022; // Subnormals use exp = -1022 with 0.mantissa
+    }
+  }
+
+  return {
+    signBit,
+    exponentBits,
+    mantissaBits,
+    fullBinary: binary64,
+    spacedBinary: `${signBit} ${exponentBits} ${mantissaBits}`,
+    hexString: '0x' + bigUint64[0].toString(16).toUpperCase().padStart(16, '0'),
+    decimalVal: numVal,
+    specialCase,
+    unbiasedExponent: unbiasedExp,
+    biasedExponent: biasedExp,
+  };
+}
+
 /**
  * Converts a number or input string (decimal or hex) to IEEE 754 double precision object.
  */
 export function decimalToIEEE754Double(input: number | string, mode?: 'decimal' | 'hex'): IEEE754Double {
   let numVal: number;
-  let isHexInput = false;
 
   const cleanInput = typeof input === 'string' ? input.trim() : String(input);
 
   // Check if input is hexadecimal (starts with 0x/0X or is 16 hex chars or mode is hex)
-  if (mode === 'hex' || (typeof input === 'string' && (cleanInput.startsWith('0x') || cleanInput.startsWith('0X') || /^[0-9a-fA-F]{16}$/.test(cleanInput.replace(/^0x/i, ''))))) {
+  if (mode === 'hex' || (mode !== 'decimal' && typeof input === 'string' && (cleanInput.startsWith('0x') || cleanInput.startsWith('0X') || /^[0-9a-fA-F]{16}$/.test(cleanInput.replace(/^0x/i, ''))))) {
     const hexClean = cleanInput.replace(/^0x/i, '').replace(/\s+/g, '');
     if (/^[0-9a-fA-F]{16}$/.test(hexClean)) {
       try {
@@ -45,10 +85,9 @@ export function decimalToIEEE754Double(input: number | string, mode?: 'decimal' 
         const buffer = new ArrayBuffer(8);
         const bigUint64 = new BigUint64Array(buffer);
         const float64 = new Float64Array(buffer);
-        
+
         bigUint64[0] = bigIntVal;
         numVal = float64[0];
-        isHexInput = true;
       } catch {
         numVal = parseHexFloat(cleanInput);
       }
@@ -60,7 +99,7 @@ export function decimalToIEEE754Double(input: number | string, mode?: 'decimal' 
   }
 
   // Handle case where parsing fails
-  if (isNaN(numVal) && !cleanInput.toLowerCase().includes('nan') && !isHexInput) {
+  if (isNaN(numVal) && !cleanInput.toLowerCase().includes('nan')) {
     numVal = NaN;
   }
 
@@ -68,50 +107,9 @@ export function decimalToIEEE754Double(input: number | string, mode?: 'decimal' 
   const buffer = new ArrayBuffer(8);
   const float64 = new Float64Array(buffer);
   const bigUint64 = new BigUint64Array(buffer);
-
   float64[0] = numVal;
-  const bitsBigInt = bigUint64[0];
-  const binary64 = bitsBigInt.toString(2).padStart(64, '0');
 
-  const signBit = binary64[0];
-  const exponentBits = binary64.substring(1, 12);
-  const mantissaBits = binary64.substring(12);
-
-  const biasedExp = parseInt(exponentBits, 2);
-  let unbiasedExp = biasedExp - 1023;
-  let specialCase: string | null = null;
-
-  if (biasedExp === 2047) {
-    if (mantissaBits === '0'.repeat(52)) {
-      specialCase = signBit === '0' ? '+Infinity' : '-Infinity';
-    } else {
-      specialCase = 'NaN';
-    }
-  } else if (biasedExp === 0) {
-    if (mantissaBits === '0'.repeat(52)) {
-      specialCase = signBit === '0' ? '+0' : '-0';
-      unbiasedExp = 0;
-    } else {
-      specialCase = 'Subnormal (Denormal)';
-      unbiasedExp = -1022; // Subnormals use exp = -1022 with 0.mantissa
-    }
-  }
-
-  const spacedBinary = `${signBit} ${exponentBits} ${mantissaBits}`;
-  const hexVal = '0x' + bitsBigInt.toString(16).toUpperCase().padStart(16, '0');
-
-  return {
-    signBit,
-    exponentBits,
-    mantissaBits,
-    fullBinary: binary64,
-    spacedBinary,
-    hexString: hexVal,
-    decimalVal: numVal,
-    specialCase,
-    unbiasedExponent: unbiasedExp,
-    biasedExponent: biasedExp,
-  };
+  return buildIEEE754FromBits(bigUint64[0]);
 }
 
 /**
@@ -254,9 +252,13 @@ function roundBinaryString(binaryStr: string, targetFractionalBits: number): Rou
   };
 }
 
+/** Rounds a decimal string using exact digit-string arithmetic (no float scaling). */
 function roundDecimalString(decStr: string, targetDigits: number): RoundingResult {
-  const num = parseFloat(decStr);
-  if (isNaN(num)) {
+  const cleanStr = decStr.trim().replace(/\s+/g, '');
+  const match = /^(-?)(\d*)(?:\.(\d*))?$/.exec(cleanStr);
+  const hasDigits = !!match && (!!match[2] || !!match[3]);
+
+  if (!match || !hasDigits) {
     return {
       chopping: 'Invalid input',
       roundUp: 'Invalid input',
@@ -273,35 +275,59 @@ function roundDecimalString(decStr: string, targetDigits: number): RoundingResul
     };
   }
 
-  const factor = Math.pow(10, targetDigits);
-  const sign = num < 0 ? -1 : 1;
-  const absNum = Math.abs(num);
+  const isNegative = match[1] === '-';
+  const integerPart = match[2] || '0';
+  const fracPart = (match[3] || '').padEnd(targetDigits + 1, '0');
 
-  // Chopping (towards 0)
-  const choppedVal = sign * (Math.floor(absNum * factor) / factor);
-  const choppingRes = choppedVal.toFixed(targetDigits);
+  const keptFrac = fracPart.substring(0, targetDigits);
+  const droppedFrac = fracPart.substring(targetDigits);
+  const hasNonZeroDropped = /[1-9]/.test(droppedFrac);
 
-  // Round Up (towards +inf)
-  const roundUpVal = Math.ceil(num * factor) / factor;
-  const roundUpRes = roundUpVal.toFixed(targetDigits);
+  const prefix = isNegative ? '-' : '';
+  const format = (intP: string, fracP: string) => `${prefix}${intP}.${fracP}`;
 
-  // Round Down (towards -inf)
-  const roundDownVal = Math.floor(num * factor) / factor;
-  const roundDownRes = roundDownVal.toFixed(targetDigits);
-
-  // Ties to even
-  const scaled = num * factor;
-  const floorScaled = Math.floor(scaled);
-  const diff = scaled - floorScaled;
-  let tiesVal = Math.round(scaled);
-  if (Math.abs(diff - 0.5) < 1e-12) {
-    if (floorScaled % 2 === 0) {
-      tiesVal = floorScaled;
-    } else {
-      tiesVal = floorScaled + 1;
+  // Increments the combined integer+fraction digit string by 1 (magnitude only), handling carry-out.
+  function incrementMagnitude(intP: string, fracP: string): [string, string] {
+    const digits = (intP + fracP).split('');
+    let carry = 1;
+    for (let i = digits.length - 1; i >= 0 && carry; i--) {
+      const d = digits[i].charCodeAt(0) - 48 + carry;
+      digits[i] = String(d % 10);
+      carry = d >= 10 ? 1 : 0;
     }
+    let combined = digits.join('');
+    if (carry) combined = '1' + combined;
+    const newIntLen = combined.length - fracP.length;
+    return [combined.substring(0, newIntLen), combined.substring(newIntLen)];
   }
-  const tiesToEvenRes = (tiesVal / factor).toFixed(targetDigits);
+
+  const choppingRes = format(integerPart, keptFrac);
+
+  // Round-Up (towards +infinity): positive magnitudes with dropped digits round away from zero.
+  let roundUpRes = choppingRes;
+  if (hasNonZeroDropped && !isNegative) {
+    const [i, f] = incrementMagnitude(integerPart, keptFrac);
+    roundUpRes = format(i, f);
+  }
+
+  // Round-Down (towards -infinity): negative magnitudes with dropped digits round away from zero.
+  let roundDownRes = choppingRes;
+  if (hasNonZeroDropped && isNegative) {
+    const [i, f] = incrementMagnitude(integerPart, keptFrac);
+    roundDownRes = format(i, f);
+  }
+
+  // Ties-to-Even
+  const firstDropped = droppedFrac[0];
+  const restDroppedHasNonZero = /[1-9]/.test(droppedFrac.substring(1));
+  const lastKeptDigit = keptFrac[keptFrac.length - 1];
+  const isExactTie = firstDropped === '5' && !restDroppedHasNonZero;
+
+  let tiesToEvenRes = choppingRes;
+  if (firstDropped > '5' || (isExactTie && parseInt(lastKeptDigit, 10) % 2 === 1)) {
+    const [i, f] = incrementMagnitude(integerPart, keptFrac);
+    tiesToEvenRes = format(i, f);
+  }
 
   return {
     chopping: choppingRes,
@@ -311,18 +337,182 @@ function roundDecimalString(decStr: string, targetDigits: number): RoundingResul
     inputFormat: 'decimal',
     targetBits: targetDigits,
     descriptions: {
-      chopping: `Truncated digits past position ${targetDigits} towards zero.`,
-      roundUp: `Rounded towards +infinity at precision level 10^-${targetDigits}.`,
-      roundDown: `Rounded towards -infinity at precision level 10^-${targetDigits}.`,
-      tiesToEven: `Standard IEEE 754 ties-to-even rounding applied at position ${targetDigits}.`,
+      chopping: `Truncated digits past position ${targetDigits} towards zero. Dropped digits: "${droppedFrac}".`,
+      roundUp: isNegative ? `Negative input: truncation already shifts towards +infinity.` : `Dropped digits "${droppedFrac}" > 0: rounded away from zero towards +infinity.`,
+      roundDown: isNegative ? `Dropped digits "${droppedFrac}" > 0: rounded away from zero towards -infinity.` : `Positive input: truncation already shifts towards -infinity.`,
+      tiesToEven: isExactTie ? `Exact tie at digit ${targetDigits + 1} (dropped digits are exactly "5" followed by zeros). Last kept digit was '${lastKeptDigit}', rounded to nearest even.` : `Rounded to nearest based on the first dropped digit '${firstDropped}'.`,
     },
   };
 }
 
-/**
- * Performs IEEE 754 double precision addition or multiplication using GRS (Guard, Round, Sticky) method
- * with step-by-step mathematical breakdown.
- */
+/** Extracts the 53-bit significand (implicit bit included for normals) from an IEEE754Double. */
+function toSignificand(v: IEEE754Double): bigint {
+  const implicit = v.biasedExponent === 0 ? 0n : (1n << 52n);
+  return implicit | BigInt('0b0' + v.mantissaBits);
+}
+
+/** Rounds [53-bit significand][Guard][Round] (bits 1,0 of `ext`) to the nearest even significand. */
+function roundTiesToEven(ext: bigint, sticky: boolean): { mantissa: bigint; guard: string; round: string; sticky: string; carriedOut: boolean } {
+  const guard = (ext >> 1n) & 1n;
+  const round = ext & 1n;
+  const main = ext >> 2n;
+  const shouldRoundUp = guard === 1n && (round === 1n || sticky || (main & 1n) === 1n);
+  let mantissa = shouldRoundUp ? main + 1n : main;
+  const carriedOut = mantissa >= (1n << 53n);
+  if (carriedOut) mantissa = mantissa >> 1n; // 1.111..1 + 1 ulp -> 10.000... -> renormalize
+  return { mantissa, guard: guard.toString(), round: round.toString(), sticky: sticky ? '1' : '0', carriedOut };
+}
+
+/** Packs (sign, unbiasedExp, significand) into an IEEE754Double, handling overflow/underflow. */
+function packSignificand(sign: string, unbiasedExp: number, significand53: bigint): IEEE754Double {
+  let biasedExp = unbiasedExp + 1023;
+
+  if (biasedExp <= 0) {
+    const extraShift = BigInt(1 - biasedExp);
+    const ext = significand53 << 2n;
+    const lost = ext & ((1n << extraShift) - 1n);
+    const shifted = ext >> extraShift;
+    const rounded = roundTiesToEven(shifted, lost !== 0n);
+    significand53 = rounded.mantissa;
+    biasedExp = significand53 >= (1n << 52n) ? 1 : 0;
+  }
+
+  if (biasedExp >= 2047) {
+    const bits = ((sign === '1' ? 1n : 0n) << 63n) | (2047n << 52n);
+    return buildIEEE754FromBits(bits);
+  }
+
+  const bits = ((sign === '1' ? 1n : 0n) << 63n) | (BigInt(biasedExp) << 52n) | (significand53 & ((1n << 52n) - 1n));
+  return buildIEEE754FromBits(bits);
+}
+
+interface GRSAdditionResult {
+  resultIEEE: IEEE754Double;
+  guard: string;
+  round: string;
+  sticky: string;
+  expDiff: number;
+  shiftedLabel: 'A' | 'B';
+  isSameSign: boolean;
+  isTie: boolean;
+  cancelled: boolean;
+}
+
+/** Computes A (+/-) B via GRS rounding on the raw significands (not native float addition). */
+function computeGRSAddition(ieeeA: IEEE754Double, ieeeB: IEEE754Double): GRSAdditionResult {
+  const sigA = toSignificand(ieeeA);
+  const sigB = toSignificand(ieeeB);
+  const expA = ieeeA.unbiasedExponent;
+  const expB = ieeeB.unbiasedExponent;
+
+  const aIsRef = expA > expB || (expA === expB && sigA >= sigB);
+  const refSig = aIsRef ? sigA : sigB;
+  const refExp = aIsRef ? expA : expB;
+  const refSign = aIsRef ? ieeeA.signBit : ieeeB.signBit;
+  const othSig = aIsRef ? sigB : sigA;
+  const othExp = aIsRef ? expB : expA;
+  const othSign = aIsRef ? ieeeB.signBit : ieeeA.signBit;
+  const shiftedLabel: 'A' | 'B' = aIsRef ? 'B' : 'A';
+
+  const shift = BigInt(refExp - othExp); // >= 0, since ref has the larger exponent (or equal)
+
+  // Extend by 2 bits (Guard/Round) before shifting, so subtraction can borrow through
+  // precision that would otherwise be discarded near exact cancellation.
+  const extRef = refSig << 2n;
+  let extOth = othSig << 2n;
+  let sticky = false;
+  if (shift > 0n) {
+    const lost = extOth & ((1n << shift) - 1n);
+    sticky = lost !== 0n;
+    extOth = extOth >> shift;
+  }
+
+  const isSameSign = refSign === othSign;
+  let ext = isSameSign ? extRef + extOth : extRef - extOth;
+
+  if (ext === 0n) {
+    // Exact cancellation: IEEE 754 defines this as +0 under round-to-nearest.
+    return {
+      resultIEEE: buildIEEE754FromBits(0n),
+      guard: '0', round: '0', sticky: '0',
+      expDiff: Number(shift), shiftedLabel, isSameSign, isTie: false, cancelled: true,
+    };
+  }
+
+  // Normalize so the implicit bit sits at position 54 (carry-out if normShift > 0, cancellation if < 0).
+  const bitLen = ext.toString(2).length;
+  const normShift = bitLen - 1 - 54;
+  let resultExp = refExp;
+  if (normShift > 0) {
+    const lostDuringNorm = ext & ((1n << BigInt(normShift)) - 1n);
+    if (lostDuringNorm !== 0n) sticky = true;
+    ext = ext >> BigInt(normShift);
+    resultExp += normShift;
+  } else if (normShift < 0) {
+    ext = ext << BigInt(-normShift);
+    resultExp += normShift;
+  }
+
+  const rounded = roundTiesToEven(ext, sticky);
+  if (rounded.carriedOut) resultExp += 1;
+
+  return {
+    resultIEEE: packSignificand(refSign, resultExp, rounded.mantissa),
+    guard: rounded.guard,
+    round: rounded.round,
+    sticky: rounded.sticky,
+    expDiff: Number(shift),
+    shiftedLabel,
+    isSameSign,
+    isTie: rounded.guard === '1' && rounded.round === '0' && rounded.sticky === '0',
+    cancelled: false,
+  };
+}
+
+interface GRSMultiplicationResult {
+  resultIEEE: IEEE754Double;
+  guard: string;
+  round: string;
+  sticky: string;
+  topBit: number;
+  product: bigint;
+}
+
+/** Computes A * B via GRS rounding on the raw significand product (not native float multiply). */
+function computeGRSMultiplication(ieeeA: IEEE754Double, ieeeB: IEEE754Double): GRSMultiplicationResult {
+  const sigA = toSignificand(ieeeA);
+  const sigB = toSignificand(ieeeB);
+  const product = sigA * sigB;
+
+  const topBit = product.toString(2).length - 1; // MSB index of the raw product
+  const shiftAmount = topBit - 54;
+  let ext: bigint;
+  let sticky: boolean;
+  if (shiftAmount >= 0) {
+    const lost = product & ((1n << BigInt(shiftAmount)) - 1n);
+    ext = product >> BigInt(shiftAmount);
+    sticky = lost !== 0n;
+  } else {
+    ext = product << BigInt(-shiftAmount);
+    sticky = false;
+  }
+
+  const rounded = roundTiesToEven(ext, sticky);
+  let resultExp = topBit + ieeeA.unbiasedExponent + ieeeB.unbiasedExponent - 104;
+  if (rounded.carriedOut) resultExp += 1;
+  const resultSign = ieeeA.signBit === ieeeB.signBit ? '0' : '1';
+
+  return {
+    resultIEEE: packSignificand(resultSign, resultExp, rounded.mantissa),
+    guard: rounded.guard,
+    round: rounded.round,
+    sticky: rounded.sticky,
+    topBit,
+    product,
+  };
+}
+
+/** Performs IEEE 754 double-precision addition/multiplication via GRS rounding, with a step-by-step trace. */
 export function performGRSArithmetic(
   opAStr: string,
   opBStr: string,
@@ -346,7 +536,7 @@ export function performGRSArithmetic(
     binaryVisualization: `A: ${ieeeA.spacedBinary}\nB: ${ieeeB.spacedBinary}`,
   });
 
-  // Handle special cases (+/- Inf, NaN, 0)
+  // Special cases (Inf, NaN, 0): GRS rounding doesn't apply, IEEE 754 defines these directly.
   if (ieeeA.specialCase || ieeeB.specialCase) {
     let resultVal = 0;
     if (operation === '+') {
@@ -360,7 +550,7 @@ export function performGRSArithmetic(
       stepNumber: 2,
       title: 'Special Case Evaluation',
       description: `Detected special IEEE 754 value: Operand A (${ieeeA.specialCase || 'Normal'}), Operand B (${ieeeB.specialCase || 'Normal'}).`,
-      detail: `Rule applied according to IEEE 754 spec. Final result evaluated directly to ${resIEEE.specialCase || resultVal}.`,
+      detail: `Rule applied according to IEEE 754 spec (GRS rounding does not apply to special values). Final result evaluated directly to ${resIEEE.specialCase || resultVal}.`,
     });
 
     return {
@@ -375,173 +565,123 @@ export function performGRSArithmetic(
     };
   }
 
-  let finalResNum: number;
   if (operation === '+') {
-    finalResNum = ieeeA.decimalVal + ieeeB.decimalVal;
+    const add = computeGRSAddition(ieeeA, ieeeB);
 
-    // Exact GRS bit computation for addition using BigInt
-    const sigA = (ieeeA.biasedExponent === 0 ? 0n : (1n << 52n)) | BigInt('0b0' + ieeeA.mantissaBits);
-    const sigB = (ieeeB.biasedExponent === 0 ? 0n : (1n << 52n)) | BigInt('0b0' + ieeeB.mantissaBits);
-
-    let smallerSig = sigB;
-    let shiftedOperand = 'B';
-    if (ieeeB.biasedExponent < ieeeA.biasedExponent) {
-      smallerSig = sigB;
-      shiftedOperand = 'B';
-    } else if (ieeeA.biasedExponent < ieeeB.biasedExponent) {
-      smallerSig = sigA;
-      shiftedOperand = 'A';
+    if (add.cancelled) {
+      steps.push({
+        stepNumber: 2,
+        title: 'Exact Cancellation',
+        description: `Operands are equal in magnitude with opposite signs: A + B cancels exactly.`,
+        detail: `Result is exactly +0 under round-to-nearest ties-to-even.`,
+      });
     } else {
-      smallerSig = sigA < sigB ? sigA : sigB;
-      shiftedOperand = sigA < sigB ? 'A' : 'B';
+      steps.push({
+        stepNumber: 2,
+        title: 'Exponent Alignment (ΔE) & Mantissa Shift',
+        description: `Calculate exponent difference: ΔE = |E - E'| = ${add.expDiff}. Align to the larger-magnitude operand.`,
+        detail: add.expDiff > 0
+          ? `Shifted Operand ${add.shiftedLabel}'s mantissa right by ΔE (${add.expDiff}) bits. Outshifted bits generated Guard (G=${add.guard}), Round (R=${add.round}), and Sticky (S=${add.sticky}) bits.`
+          : `Exponents are equal (ΔE = 0). No right-shift required.`,
+        grsStatus: { guard: add.guard, round: add.round, sticky: add.sticky },
+      });
+
+      steps.push({
+        stepNumber: 3,
+        title: 'Significand Addition / Subtraction',
+        description: `Perform binary ${add.isSameSign ? 'addition' : 'subtraction'} on the aligned significands, including the Guard, Round, and Sticky bits.`,
+        detail: `Signs ${add.isSameSign ? 'match' : 'differ'} (${ieeeA.signBit} and ${ieeeB.signBit}).`,
+        binaryVisualization: `A Mantissa: 1.${ieeeA.mantissaBits.substring(0, 20)}...\nB Mantissa: 1.${ieeeB.mantissaBits.substring(0, 20)}...\nGRS Bits:   G:${add.guard} R:${add.round} S:${add.sticky}`,
+      });
+
+      steps.push({
+        stepNumber: 4,
+        title: 'Normalization',
+        description: `Check for significand carry-out or cancellation-driven leading zeros. Adjust the exponent and re-derive the Guard/Round bits if the significand shifted.`,
+        detail: `Normalized result exponent: ${add.resultIEEE.unbiasedExponent} (Biased ${add.resultIEEE.biasedExponent}).`,
+      });
+
+      steps.push({
+        stepNumber: 5,
+        title: 'GRS Rounding (Ties-to-Even)',
+        description: `Apply IEEE 754 round-to-nearest ties-to-even using the Guard, Round, and Sticky bits.`,
+        detail: `G=${add.guard}, R=${add.round}, S=${add.sticky}. ${add.guard === '1' ? (add.isTie ? 'Exact tie: rounded to make the mantissa LSB even.' : 'More than halfway: rounded up.') : 'Less than halfway: truncated.'}`,
+        grsStatus: { guard: add.guard, round: add.round, sticky: add.sticky },
+      });
     }
 
-    const expDiff = Math.abs(ieeeA.biasedExponent - ieeeB.biasedExponent);
-    const largerExp = Math.max(ieeeA.biasedExponent, ieeeB.biasedExponent);
-
-    let guard = '0';
-    let round = '0';
-    let sticky = '0';
-
-    if (expDiff > 0) {
-      const shift = expDiff;
-      if (shift <= 53) {
-        const shiftedOut = smallerSig & ((1n << BigInt(shift)) - 1n);
-        const gBit = (shiftedOut >> BigInt(shift - 1)) & 1n;
-        const rBit = shift >= 2 ? (shiftedOut >> BigInt(shift - 2)) & 1n : 0n;
-        const sBits = shift >= 3 ? shiftedOut & ((1n << BigInt(shift - 2)) - 1n) : 0n;
-        guard = gBit.toString();
-        round = rBit.toString();
-        sticky = sBits > 0n ? '1' : '0';
-      } else {
-        guard = '0';
-        round = '0';
-        sticky = smallerSig > 0n ? '1' : '0';
-      }
-    }
-
     steps.push({
-      stepNumber: 2,
-      title: 'Exponent Alignment (ΔE) & Mantissa Shift',
-      description: `Calculate exponent difference: ΔE = |E - E'| = |${ieeeA.biasedExponent} - ${ieeeB.biasedExponent}| = ${expDiff}. Align to larger exponent (${largerExp}).`,
-      detail: expDiff > 0
-        ? `Shifted Operand ${shiftedOperand}'s mantissa right by ΔE (${expDiff}) bits. Outshifted bits generated Guard (G=${guard}), Round (R=${round}), and Sticky (S=${sticky}) bits.`
-        : `Exponents are equal (ΔE = 0). No right-shift required. GRS initialized to G=0, R=0, S=0.`,
-      grsStatus: { guard, round, sticky },
+      stepNumber: 6,
+      title: 'Final IEEE 754 64-Bit Re-Packing',
+      description: `Assemble final 64-bit word: Sign bit (1), Biased Exponent (11), Mantissa (52).`,
+      detail: `Final Binary: ${add.resultIEEE.spacedBinary}\nFinal Hex: ${add.resultIEEE.hexString}\nFinal Decimal: ${add.resultIEEE.decimalVal}`,
+      binaryVisualization: add.resultIEEE.spacedBinary,
     });
 
-    const isSameSign = ieeeA.signBit === ieeeB.signBit;
-
-    steps.push({
-      stepNumber: 3,
-      title: 'Significand Addition / Subtraction',
-      description: `Perform binary ${isSameSign ? 'addition' : 'subtraction'} on 53-bit aligned significands including Guard, Round, and Sticky bits.`,
-      detail: `Signs ${isSameSign ? 'match' : 'differ'} (${ieeeA.signBit} and ${ieeeB.signBit}). Evaluated aligned significands in 56-bit accumulator.`,
-      binaryVisualization: `A Mantissa: 1.${ieeeA.mantissaBits.substring(0, 20)}...\nB Mantissa: 1.${ieeeB.mantissaBits.substring(0, 20)}...\nGRS Bits:   G:${guard} R:${round} S:${sticky}`,
-    });
-
-    steps.push({
-      stepNumber: 4,
-      title: 'Normalization & Sticky Bit Update',
-      description: `Check for MSB carry out or leading zeros. Adjust exponent and shift significand if needed.`,
-      detail: `Significand normalized to 1.fraction form. Biased exponent set to ${largerExp} (Unbiased E = ${largerExp - 1023}).`,
-    });
-
-    const isTie = guard === '1' && round === '0' && sticky === '0';
-    const roundDecision = guard === '1'
-      ? (isTie ? 'Tie detected (G=1, R=0, S=0). Check LSB for Round-to-Nearest Ties-to-Even.' : 'Guard bit G=1. Round up LSB (+1).')
-      : 'Guard bit G=0. Truncate (Chop GRS).';
-
-    steps.push({
-      stepNumber: 5,
-      title: 'GRS Rounding (Ties-to-Even)',
-      description: `Apply IEEE 754 round-to-nearest ties-to-even using GRS status.`,
-      detail: `G=${guard}, R=${round}, S=${sticky}. Decision: ${roundDecision}`,
-    });
-
+    return {
+      operandA: ieeeA,
+      operandB: ieeeB,
+      operation,
+      resultIEEE: add.resultIEEE,
+      resultDecimalString: String(add.resultIEEE.decimalVal),
+      resultHexString: add.resultIEEE.hexString,
+      specialCase: add.resultIEEE.specialCase,
+      steps,
+    };
   } else {
-    // Multiplication
-    finalResNum = ieeeA.decimalVal * ieeeB.decimalVal;
-
+    const mul = computeGRSMultiplication(ieeeA, ieeeB);
     const unroundedExp = ieeeA.unbiasedExponent + ieeeB.unbiasedExponent;
-    const resultBiasedExp = unroundedExp + 1023;
+    const isTie = mul.guard === '1' && mul.round === '0' && mul.sticky === '0';
 
     steps.push({
       stepNumber: 2,
       title: 'Exponent Addition & Bias Adjustment',
       description: `Add unbiased exponents: E (${ieeeA.unbiasedExponent}) + E' (${ieeeB.unbiasedExponent}) = ${unroundedExp}.`,
-      detail: `Re-apply bias: ${unroundedExp} + 1023 = ${resultBiasedExp} (Biased Exponent: ${resultBiasedExp >= 0 ? resultBiasedExp.toString(2).padStart(11, '0') : 'Underflow'}).`,
+      detail: `Product significand's leading bit sits at position ${mul.topBit}. Normalized biased exponent before final rounding: ${mul.resultIEEE.biasedExponent}.`,
     });
-
-    const sigA = (ieeeA.biasedExponent === 0 ? 0n : (1n << 52n)) | BigInt('0b0' + ieeeA.mantissaBits);
-    const sigB = (ieeeB.biasedExponent === 0 ? 0n : (1n << 52n)) | BigInt('0b0' + ieeeB.mantissaBits);
-    const product = sigA * sigB;
-
-    const isOverflow = (product & (1n << 105n)) !== 0n;
-
-    let guard = '0';
-    let round = '0';
-    let sticky = '0';
-
-    if (isOverflow) {
-      guard = ((product >> 52n) & 1n).toString();
-      round = ((product >> 51n) & 1n).toString();
-      sticky = (product & ((1n << 51n) - 1n)) > 0n ? '1' : '0';
-    } else {
-      guard = ((product >> 51n) & 1n).toString();
-      round = ((product >> 50n) & 1n).toString();
-      sticky = (product & ((1n << 50n) - 1n)) > 0n ? '1' : '0';
-    }
 
     steps.push({
       stepNumber: 3,
       title: 'Significand Multiplication & GRS Bit Extraction',
-      description: `Multiply 53-bit significands (1.M × 1.M') producing a 106-bit product.`,
-      detail: `Extracted Guard (G=${guard}), Round (R=${round}), and Sticky (S=${sticky}) bits from lower product bits.`,
-      grsStatus: { guard, round, sticky },
-      binaryVisualization: `Product MSB: ${product.toString(2).substring(0, 32)}...\nGRS Status:  G:${guard} R:${round} S:${sticky}`,
+      description: `Multiply the 53-bit significands (1.M × 1.M') producing a wide product.`,
+      detail: `Extracted Guard (G=${mul.guard}), Round (R=${mul.round}), and Sticky (S=${mul.sticky}) bits from the product's low-order bits.`,
+      grsStatus: { guard: mul.guard, round: mul.round, sticky: mul.sticky },
+      binaryVisualization: `Product MSB: ${mul.product.toString(2).substring(0, 32)}...\nGRS Status:  G:${mul.guard} R:${mul.round} S:${mul.sticky}`,
     });
 
     steps.push({
       stepNumber: 4,
       title: 'Normalization & Exponent Increment',
-      description: isOverflow
+      description: mul.topBit === 105
         ? `Product overflowed into MSB bit 105 (2.0 ≤ product < 4.0). Shifted significand right 1 bit and incremented exponent.`
         : `Product in normal range (1.0 ≤ product < 2.0). No exponent shift required.`,
-      detail: `Final normalized biased exponent: ${resultBiasedExp + (isOverflow ? 1 : 0)}.`,
+      detail: `Final normalized biased exponent: ${mul.resultIEEE.biasedExponent}.`,
     });
-
-    const isTie = guard === '1' && round === '0' && sticky === '0';
-    const roundDecision = guard === '1'
-      ? (isTie ? 'Exact tie at G=1, R=0, S=0. Applied ties-to-even rule.' : 'Guard bit G=1 with non-zero trailing bits. Rounded up (+1 LSB).')
-      : 'Guard bit G=0. Truncated GRS bits.';
 
     steps.push({
       stepNumber: 5,
       title: 'GRS Round-to-Nearest (Ties-to-Even)',
-      description: `Round 106-bit normalized product down to 53 bits using Guard, Round, and Sticky bits.`,
-      detail: `Inspected G=${guard}, R=${round}, S=${sticky} bits. Decision: ${roundDecision}`,
+      description: `Round the normalized product down to 53 bits using the Guard, Round, and Sticky bits.`,
+      detail: `G=${mul.guard}, R=${mul.round}, S=${mul.sticky}. ${mul.guard === '1' ? (isTie ? 'Exact tie: rounded to make the mantissa LSB even.' : 'More than halfway: rounded up.') : 'Less than halfway: truncated.'}`,
     });
+
+    steps.push({
+      stepNumber: 6,
+      title: 'Final IEEE 754 64-Bit Re-Packing',
+      description: `Assemble final 64-bit word: Sign bit (1), Biased Exponent (11), Mantissa (52).`,
+      detail: `Final Binary: ${mul.resultIEEE.spacedBinary}\nFinal Hex: ${mul.resultIEEE.hexString}\nFinal Decimal: ${mul.resultIEEE.decimalVal}`,
+      binaryVisualization: mul.resultIEEE.spacedBinary,
+    });
+
+    return {
+      operandA: ieeeA,
+      operandB: ieeeB,
+      operation,
+      resultIEEE: mul.resultIEEE,
+      resultDecimalString: String(mul.resultIEEE.decimalVal),
+      resultHexString: mul.resultIEEE.hexString,
+      specialCase: mul.resultIEEE.specialCase,
+      steps,
+    };
   }
-
-  const resultIEEE = decimalToIEEE754Double(finalResNum);
-
-  steps.push({
-    stepNumber: 6,
-    title: 'Final IEEE 754 64-Bit Re-Packing',
-    description: `Assemble final 64-bit word: Sign bit (1), Biased Exponent (11), Mantissa (52).`,
-    detail: `Final Binary: ${resultIEEE.spacedBinary}\nFinal Hex: ${resultIEEE.hexString}\nFinal Decimal: ${finalResNum}`,
-    binaryVisualization: resultIEEE.spacedBinary,
-  });
-
-  return {
-    operandA: ieeeA,
-    operandB: ieeeB,
-    operation,
-    resultIEEE,
-    resultDecimalString: String(finalResNum),
-    resultHexString: resultIEEE.hexString,
-    specialCase: resultIEEE.specialCase,
-    steps,
-  };
 }

@@ -1,6 +1,6 @@
 # Binary 64-bit Floating-Point Machine
 
-[![Live Demo](https://img.shields.io/badge/Vercel-Live%20Demo-success?style=for-the-badge&logo=vercel)](https://binary-64-bit-fp-machine.vercel.app/)
+**[Live Deployment](https://binary-64-bit-fp-machine.vercel.app/)** · **[Video Walkthrough](#video-walkthrough)**
 
 An interactive, high-precision web application for **Machine 3: IEEE 754 Binary 64-Bit Double-Precision Floating-Point Architecture Visualization**. Access the live deployment at **[https://binary-64-bit-fp-machine.vercel.app/](https://binary-64-bit-fp-machine.vercel.app/)**.
 
@@ -29,11 +29,73 @@ An interactive, high-precision web application for **Machine 3: IEEE 754 Binary 
 ### 3. Step-by-Step GRS Arithmetic Module
 - **Operations**: Floating-Point Addition ($+$) and Multiplication ($*$).
 - **Input Formats**: Decimal or 16-character hexadecimal operands.
-- **Guard, Round, & Sticky (GRS) Logic**:
+- **Guard, Round, & Sticky (GRS) Logic**: the displayed result is derived bit-for-bit from this pipeline, not shortcut to native arithmetic:
   - Exponent alignment & significand shifting
   - Explicit Guard ($G$), Round ($R$), and Sticky ($S$) bit calculation
-  - Normalization, overflow/underflow checks, and final rounding
+  - Normalization (carry-out / cancellation), overflow/underflow checks, and final round-to-nearest-ties-to-even rounding
 - **Detailed Step Breakdown**: Accordion step-by-step trace with binary shift visualizations.
+
+---
+
+## Testing
+
+Each module was exercised against normal, special-case (`NaN`, `±Infinity`, `±0`, subnormal), overflow/underflow, and mixed decimal/hex inputs. Screenshots are stored in [`public/screenshots/`](public/screenshots/) and demonstrated live in the [video walkthrough](#video-walkthrough).
+
+<!-- TODO: capture and add screenshots for the remaining unchecked items below -->
+
+### Conversion
+
+- **Normal decimal input**
+
+  <img src="public/screenshots/conversion-decimal.png" width="700" alt="Conversion: normal decimal input">
+
+- **Normal hexadecimal input**
+
+  <img src="public/screenshots/conversion-hex.png" width="700" alt="Conversion: normal hexadecimal input">
+
+- **NaN**
+
+  <img src="public/screenshots/conversion-nan.png" width="700" alt="Conversion: NaN">
+
+- **+Infinity**
+
+  <img src="public/screenshots/conversion-inf-pos.png" width="700" alt="Conversion: +Infinity">
+
+- **-Infinity**
+
+  <img src="public/screenshots/conversion-inf-neg.png" width="700" alt="Conversion: -Infinity">
+
+- **+0**
+
+  <img src="public/screenshots/conversion-zero-pos.png" width="700" alt="Conversion: +0">
+
+- **-0**
+
+  <img src="public/screenshots/conversion-zero-neg.png" width="700" alt="Conversion: -0">
+
+- **Subnormal (denormalized)**
+
+  <img src="public/screenshots/conversion-subnormal.png" width="700" alt="Conversion: subnormal denormalized value">
+
+### Rounding Demonstrator
+
+- [ ] Binary input, all 4 methods, non-tie case
+- [ ] Binary input, all 4 methods, exact-tie case (ties-to-even)
+- [ ] Decimal input, all 4 methods, non-tie case
+- [ ] Decimal input, all 4 methods, exact-tie case (ties-to-even)
+- [ ] Negative input
+
+### GRS Arithmetic
+
+- [ ] Addition, decimal operands, normal range
+- [ ] Addition, hexadecimal operands, normal range
+- [ ] Addition producing an exact tie (G=1, R=0, S=0)
+- [ ] Addition with catastrophic cancellation (near-equal operands, opposite signs)
+- [ ] Multiplication, decimal operands, normal range
+- [ ] Multiplication, hexadecimal operands, normal range
+- [ ] Overflow to `Infinity` (e.g. `Number.MAX_VALUE * 2`)
+- [ ] Underflow to subnormal/zero
+- [ ] One operand is `NaN` / `Infinity` / `0`
 
 ---
 
@@ -79,4 +141,4 @@ An interactive, high-precision web application for **Machine 3: IEEE 754 Binary 
 
 ## License
 
-Created for CS ARCH2 / Architecture 3 coursework.
+Created for CSARCH2 / Architecture 3 coursework.
