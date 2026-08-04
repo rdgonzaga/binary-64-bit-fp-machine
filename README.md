@@ -1,6 +1,6 @@
 # Binary 64-bit Floating-Point Machine
 
-**[Live Demo](https://binary-64-bit-fp-machine.vercel.app/)** · **[Video Walkthrough](#video-walkthrough)**
+**[Live Deployment](https://binary-64-bit-fp-machine.vercel.app/)** · **[Video Walkthrough](#video-walkthrough)**
 
 An interactive, high-precision web application for **Machine 3: IEEE 754 Binary 64-Bit Double-Precision Floating-Point Architecture Visualization**. Access the live deployment at **[https://binary-64-bit-fp-machine.vercel.app/](https://binary-64-bit-fp-machine.vercel.app/)**.
 
