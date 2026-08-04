@@ -1,8 +1,10 @@
 # Binary 64-bit Floating-Point Machine
 
-[![Live Demo](https://img.shields.io/badge/Vercel-Live%20Demo-success?style=for-the-badge&logo=vercel)](https://binary-64-bit-fp-machine.vercel.app/)
+**[Live Demo](https://binary-64-bit-fp-machine.vercel.app/)** · **[Video Walkthrough](#video-walkthrough)**
 
 An interactive, high-precision web application for **Machine 3: IEEE 754 Binary 64-Bit Double-Precision Floating-Point Architecture Visualization**. Access the live deployment at **[https://binary-64-bit-fp-machine.vercel.app/](https://binary-64-bit-fp-machine.vercel.app/)**.
+
+> **Before submission:** also set this same URL as the repository's **About → Website** link on GitHub (this link only lives inside this README) — the "About" field is what the grading rubric checks first.
 
 ---
 
@@ -29,11 +31,48 @@ An interactive, high-precision web application for **Machine 3: IEEE 754 Binary 
 ### 3. Step-by-Step GRS Arithmetic Module
 - **Operations**: Floating-Point Addition ($+$) and Multiplication ($*$).
 - **Input Formats**: Decimal or 16-character hexadecimal operands.
-- **Guard, Round, & Sticky (GRS) Logic**:
+- **Guard, Round, & Sticky (GRS) Logic**: the displayed result is derived bit-for-bit from this pipeline, not shortcut to native arithmetic:
   - Exponent alignment & significand shifting
   - Explicit Guard ($G$), Round ($R$), and Sticky ($S$) bit calculation
-  - Normalization, overflow/underflow checks, and final rounding
+  - Normalization (carry-out / cancellation), overflow/underflow checks, and final round-to-nearest-ties-to-even rounding
 - **Detailed Step Breakdown**: Accordion step-by-step trace with binary shift visualizations.
+
+---
+
+## Testing
+
+Each module was exercised against normal, special-case (`NaN`, `±Infinity`, `±0`, subnormal), overflow/underflow, and mixed decimal/hex inputs. Screenshots for every case below are stored in this repo (see checklist) and demonstrated live in the [video walkthrough](#video-walkthrough).
+
+<!-- TODO: add a `screenshots/` folder to the repo and link each checked item below to its image, e.g. `[✓](screenshots/conversion-nan.png)` -->
+
+- **Conversion**
+  - [ ] Normal decimal input (e.g. `5.8598744`)
+  - [ ] Normal hexadecimal input (e.g. `0x40177082EFAC4240`)
+  - [ ] `NaN`
+  - [ ] `+Infinity` / `-Infinity`
+  - [ ] `+0` / `-0`
+  - [ ] Subnormal (denormalized) value (e.g. `5e-320`)
+- **Rounding Demonstrator**
+  - [ ] Binary input, all 4 methods, non-tie case
+  - [ ] Binary input, all 4 methods, exact-tie case (ties-to-even)
+  - [ ] Decimal input, all 4 methods, non-tie case
+  - [ ] Decimal input, all 4 methods, exact-tie case (ties-to-even)
+  - [ ] Negative input
+- **GRS Arithmetic**
+  - [ ] Addition, decimal operands, normal range
+  - [ ] Addition, hexadecimal operands, normal range
+  - [ ] Addition producing an exact tie (G=1, R=0, S=0)
+  - [ ] Addition with catastrophic cancellation (near-equal operands, opposite signs)
+  - [ ] Multiplication, decimal operands, normal range
+  - [ ] Multiplication, hexadecimal operands, normal range
+  - [ ] Overflow to `Infinity` (e.g. `Number.MAX_VALUE * 2`)
+  - [ ] Underflow to subnormal/zero
+  - [ ] One operand is `NaN` / `Infinity` / `0`
+
+## Video Walkthrough
+
+<!-- TODO: record a 5-8 minute YouTube video demonstrating every test case above, then replace this line with the link -->
+**YouTube link:** _TODO — add before submission_
 
 ---
 
@@ -79,4 +118,4 @@ An interactive, high-precision web application for **Machine 3: IEEE 754 Binary 
 
 ## License
 
-Created for CS ARCH2 / Architecture 3 coursework.
+Created for CSARCH2 / Architecture 3 coursework.
